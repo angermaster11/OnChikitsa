@@ -1,0 +1,85 @@
+/* OnChikitsa user-app splash — animated two-phase intro:
+   phase 1 = black "OnChikitsa" wordmark on white,
+   phase 2 = white wordmark on a living purple→blue→cyan aurora gradient.
+   Self-contained CSS Module (Poppins wordmark supplied by page.js);
+   touches no shared globals. The old global .splash* classes are now unused. */
+
+.root {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #ffffff;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* gradient layer — fades in for phase 2 (clips the oversized fill) */
+.grad {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0;
+}
+.gradFill {
+  position: absolute;
+  inset: -25%;
+  will-change: transform;
+  background:
+    radial-gradient(38% 32% at 52% 34%, #8b2fe6 0%, rgba(139, 47, 230, 0) 60%),
+    radial-gradient(46% 40% at 32% 68%, #3563ff 0%, rgba(53, 99, 255, 0) 62%),
+    radial-gradient(52% 44% at 26% 104%, #46c6f5 0%, rgba(70, 198, 245, 0) 58%),
+    radial-gradient(40% 34% at 82% 16%, #c39bf2 0%, rgba(195, 155, 242, 0) 58%),
+    linear-gradient(180deg, #f4effc 0%, #7a4fdd 42%, #3f7ef0 74%, #d3f0fb 100%);
+}
+
+/* both wordmarks share one centred cell so it reads as a colour morph */
+.stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.word {
+  grid-area: 1 / 1;
+  margin: 0;
+  font-size: clamp(36px, 11.5vw, 54px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  white-space: nowrap;
+}
+.dark { color: #141414; opacity: 0; }
+.light { color: #ffffff; opacity: 0; }
+
+/* ---- play (added on mount) drives the sequence ---- */
+.play .grad { animation: gfade 1000ms ease 820ms forwards; }
+.play .gradFill { animation: drift 11s ease-in-out infinite alternate; }
+.play .dark {
+  animation: pop 720ms cubic-bezier(0.2, 0.7, 0.3, 1) 60ms both,
+             dfade 380ms ease 1080ms forwards;
+}
+.play .light { animation: lrise 560ms ease 1300ms forwards; }
+
+@keyframes pop {
+  from { opacity: 0; transform: translateY(6px) scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes dfade { to { opacity: 0; } }
+@keyframes lrise {
+  from { opacity: 0; transform: scale(0.99); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes gfade { to { opacity: 1; } }
+@keyframes drift {
+  from { transform: translate3d(0, 0, 0) scale(1.02) rotate(0deg); }
+  to   { transform: translate3d(-3%, -2.5%, 0) scale(1.1) rotate(3deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grad { opacity: 1; }
+  .gradFill { animation: none; }
+  .dark { opacity: 0; animation: none; }
+  .light { opacity: 1; animation: none; }
+}

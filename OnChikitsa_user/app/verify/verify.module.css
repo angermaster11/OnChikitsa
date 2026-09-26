@@ -1,0 +1,126 @@
+/* OTP ("Confirm your number") — a thin sky band fading to white, back arrow,
+   six OTP boxes and a Continue button that darkens once the code is complete. */
+
+.root {
+  position: relative;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: #ffffff;
+  color: #12141a;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* sky band that fades into the white body */
+.sky {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 240px;
+  z-index: 0;
+  background:
+    radial-gradient(80% 60% at 24% 18%, rgba(255,210,224,0.55) 0%, rgba(255,210,224,0) 60%),
+    linear-gradient(180deg, #4aa3ff 0%, #86c1ff 34%, #c9e2ff 64%, #ffffff 100%);
+}
+
+.back {
+  position: relative;
+  z-index: 2;
+  margin: calc(env(safe-area-inset-top) + 14px) 0 0 18px;
+  width: 42px; height: 42px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%;
+  background: rgba(255,255,255,0.85);
+  color: #12141a;
+  box-shadow: 0 4px 14px rgba(20,50,90,0.16);
+  cursor: pointer;
+}
+
+.body {
+  position: relative;
+  z-index: 1;
+  padding: 24px 26px calc(env(safe-area-inset-bottom) + 24px);
+}
+
+.title {
+  margin: 18px 0 10px;
+  font-size: clamp(25px, 7.4vw, 30px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #12141a;
+}
+.desc {
+  margin: 0 0 28px;
+  font-size: 14.5px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #5b6472;
+}
+.desc b { color: #12141a; font-weight: 700; }
+
+/* ---- otp boxes ---- */
+.otpRow { display: flex; gap: 9px; }
+.otpBox {
+  flex: 1;
+  min-width: 0;
+  height: 56px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: #12141a;
+  background: #ffffff;
+  border: 1.5px solid #dfe4ec;
+  border-radius: 14px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.otpBox:focus { border-color: #2f6bff; box-shadow: 0 0 0 4px rgba(47,107,255,0.14); }
+.filled { border-color: #b9c6db; }
+.bad { border-color: #ff5a5f; }
+
+.errMsg { margin: 12px 0 0; font-size: 13px; font-weight: 500; color: #ff5a5f; }
+
+/* ---- continue button: grey until complete, then black ---- */
+.primary {
+  width: 100%;
+  height: 54px;
+  margin-top: 28px;
+  border: none;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 600;
+  background: #e9edf3;
+  color: #9aa1ad;
+  cursor: default;
+  transition: transform 0.12s ease, background 0.15s ease, color 0.15s ease;
+}
+.primary:not(:disabled) {
+  background: #101114;
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(16,17,20,0.26);
+}
+.primary:not(:disabled):active { transform: scale(0.98); }
+
+.resend {
+  margin: 22px 0 0;
+  text-align: center;
+  font-size: 13.5px;
+  font-weight: 400;
+  color: #5b6472;
+}
+.resend button {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #2f6bff;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .otpBox, .primary { transition: none; }
+}
+
+

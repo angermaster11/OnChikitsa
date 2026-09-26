@@ -1,0 +1,22 @@
+# deps
+node_modules/
+**/node_modules/
+
+# env (secrets / generated)
+.env
+**/.env.local
+
+# next
+**/.next/
+**/out/
+
+# capacitor / android build artifacts
+**/android/app/build/
+**/android/build/
+**/android/.gradle/
+**/android/local.properties
+**/android/app/src/main/assets/public/
+
+# misc
+*.log
+.DS_Store

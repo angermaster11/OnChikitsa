@@ -1,0 +1,152 @@
+/* Appointments — clean white + single teal accent (#00cfba), matching the
+   splash / onboarding / login / dashboard language. Poppins. Self-contained. */
+
+.root {
+  --teal: #00cfba; --teal-strong: #00b3a1; --teal-ink: #068073;
+  --teal-tint: #e4f7f4; --teal-tint2: #d5f1eb;
+  --blue: #3f74f0; --blue-ink: #2e5fd8; --blue-tint: #eaf1ff;
+  --grey: #647082; --grey-tint: #eef1f0;
+  --ink: #1a1d29; --ink2: #263847; --body: #5a6472; --muted: #7e7c7d; --faint: #9aa1ad;
+  --line: #ebf0ee; --card: #ffffff;
+
+  position: relative;
+  min-height: 100dvh;
+  display: flex; flex-direction: column;
+  color: var(--ink);
+  background: linear-gradient(180deg, #eaf7f3 0%, #f5f9f8 160px, #f6f9f8 100%);
+  -webkit-user-select: none; user-select: none;
+}
+.scroll { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: calc(env(safe-area-inset-top) + 16px) 20px calc(env(safe-area-inset-bottom) + 96px); }
+
+/* staggered entrance — echoes the dashboard / onboarding rise */
+.scroll > * { animation: rise 480ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.scroll > *:nth-child(1) { animation-delay: 20ms; }
+.scroll > *:nth-child(2) { animation-delay: 80ms; }
+.scroll > *:nth-child(3) { animation-delay: 140ms; }
+.scroll > *:nth-child(4) { animation-delay: 200ms; }
+.scroll > *:nth-child(5) { animation-delay: 260ms; }
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+/* header */
+.head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.title { margin: 0 0 3px; font-size: clamp(22px, 6.2vw, 26px); font-weight: 800; letter-spacing: -0.02em; color: var(--ink); }
+.sub { margin: 0; font-size: 13px; font-weight: 400; color: var(--muted); }
+.create {
+  flex: none; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+  padding: 11px 16px; border-radius: 14px; border: none;
+  background: linear-gradient(135deg, #12d3bf, #00b3a1); color: #fff;
+  font-size: 14px; font-weight: 700; box-shadow: 0 8px 20px rgba(0,179,161,0.3);
+}
+.create:active { transform: scale(0.97); }
+/* search + filter */
+.searchRow { display: flex; gap: 10px; margin-bottom: 16px; }
+.search {
+  flex: 1 1 auto; display: flex; align-items: center; gap: 9px;
+  padding: 0 14px; height: 48px; border-radius: 15px;
+  background: #fff; border: 1px solid var(--line); color: var(--faint);
+  box-shadow: 0 4px 14px rgba(20,60,90,0.05);
+}
+.search input { flex: 1; min-width: 0; border: none; outline: none; background: none;
+  font: inherit; font-size: 14.5px; color: var(--ink); }
+.search input::placeholder { color: var(--faint); }
+.filterBtn {
+  flex: none; width: 48px; height: 48px; border-radius: 15px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff; border: 1px solid var(--line); color: var(--teal-ink);
+  box-shadow: 0 4px 14px rgba(20,60,90,0.05);
+}
+.filterBtn:active { transform: scale(0.94); }
+
+/* date strip */
+.dateStrip { display: flex; gap: 8px; overflow-x: auto; margin: 0 -20px 16px; padding: 2px 20px 4px; scrollbar-width: none; }
+.dateStrip::-webkit-scrollbar { display: none; }
+.dayCard {
+  flex: none; width: 54px; padding: 10px 0; border-radius: 16px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: #fff; border: 1px solid var(--line); color: var(--body);
+}
+.dayDow { font-size: 11px; font-weight: 600; color: var(--muted); }
+.dayNum { font-size: 18px; font-weight: 800; color: var(--ink); }
+.dayMo { font-size: 10.5px; font-weight: 500; color: var(--faint); }
+.dayOn { background: linear-gradient(160deg, #12d3bf, #00b3a1); border-color: transparent; box-shadow: 0 8px 18px rgba(0,179,161,0.3); }
+.dayOn .dayDow, .dayOn .dayNum, .dayOn .dayMo { color: #fff; }
+
+/* filter chips */
+.chips { display: flex; gap: 8px; overflow-x: auto; margin: 0 -20px 18px; padding: 0 20px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  padding: 9px 14px; border-radius: 999px; white-space: nowrap;
+  background: #fff; border: 1px solid var(--line); color: var(--body);
+  font-size: 13px; font-weight: 600;
+}
+.chipN {
+  min-width: 20px; padding: 1px 6px; border-radius: 999px; text-align: center;
+  background: var(--grey-tint); color: var(--muted); font-size: 11px; font-weight: 700;
+}
+.chipOn { background: linear-gradient(135deg, #12d3bf, #00b3a1); border-color: transparent; color: #fff; box-shadow: 0 6px 16px rgba(0,179,161,0.28); }
+.chipOn .chipN { background: rgba(255,255,255,0.28); color: #fff; }
+/* appointment cards */
+.list { display: flex; flex-direction: column; gap: 12px; }
+.card {
+  position: relative; display: flex; align-items: flex-start; gap: 12px; cursor: pointer; text-align: left;
+  padding: 14px; border-radius: 20px; background: #fff; border: 1px solid var(--line);
+  box-shadow: 0 8px 22px rgba(18,40,50,0.05);
+}
+.card:active { transform: scale(0.994); }
+.timeBlk {
+  flex: none; width: 60px; padding: 10px 4px; border-radius: 14px; text-align: center;
+  display: flex; flex-direction: column; gap: 1px; font-size: 11px; font-weight: 700; line-height: 1.1;
+}
+.timeBlk b { font-size: 11px; font-weight: 800; }
+.tb_green { background: var(--teal-tint); color: var(--teal-ink); }
+.tb_blue { background: var(--blue-tint); color: var(--blue-ink); }
+.tb_grey { background: var(--grey-tint); color: var(--grey); }
+.av {
+  flex: none; width: 42px; height: 42px; border-radius: 13px; margin-top: 1px;
+  display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700;
+}
+.av_green { background: var(--teal-tint2); color: var(--teal-ink); }
+.av_blue { background: var(--blue-tint); color: var(--blue-ink); }
+.av_grey { background: var(--grey-tint); color: var(--grey); }
+.mid { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.name { font-size: 15.5px; font-weight: 700; color: var(--ink); }
+.meta { font-size: 12.5px; font-weight: 500; color: var(--muted); }
+.phone, .type { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--muted); }
+.type { color: var(--teal-ink); font-weight: 600; }
+.end { flex: none; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch; gap: 8px; }
+.pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px 5px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
+.pill i { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+.pill_green { background: var(--teal-tint); color: var(--teal-ink); } .pill_green i { background: var(--teal); }
+.pill_blue { background: var(--blue-tint); color: var(--blue-ink); } .pill_blue i { background: var(--blue); }
+.pill_grey { background: var(--grey-tint); color: var(--grey); } .pill_grey i { background: #9aa6b6; }
+.chev { color: var(--faint); }
+.empty { text-align: center; padding: 40px 0; color: var(--muted); font-size: 14px; }
+/* bottom tab bar */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 25;
+  width: 100%; max-width: var(--maxw, 480px); margin: 0 auto;
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  padding: 8px 8px calc(env(safe-area-inset-bottom) + 8px);
+  background: rgba(255,255,255,0.94);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-top: 1px solid var(--line);
+}
+.tab {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  border: none; background: none; cursor: pointer; padding: 6px 2px;
+  font-size: 10.5px; font-weight: 600; color: var(--faint);
+}
+.tabIc { display: flex; align-items: center; justify-content: center; height: 24px; }
+.tabOn { color: var(--teal-ink); }
+.tabOn .tabIc { position: relative; }
+.tabOn .tabIc::after {
+  content: ''; position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+  width: 20px; height: 3px; border-radius: 0 0 4px 4px; background: var(--teal);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll > * { animation: none; }
+  .card:active, .create:active, .filterBtn:active { transform: none; }
+}

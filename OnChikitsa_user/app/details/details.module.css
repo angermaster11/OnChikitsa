@@ -1,0 +1,101 @@
+/* "A few more details" — sky band fading to white, back + Skip, date/height/
+   weight/gender inputs, and a pinned Continue pill. Self-contained module. */
+
+.root {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #ffffff;
+  color: #12141a;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.sky {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 220px;
+  z-index: 0;
+  background:
+    radial-gradient(78% 60% at 20% 12%, rgba(255,255,255,0.82) 0%, rgba(255,255,255,0) 60%),
+    linear-gradient(180deg, #4aa3ff 0%, #86c1ff 34%, #cbe3ff 64%, #ffffff 100%);
+}
+.top {
+  position: relative;
+  z-index: 2;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: calc(env(safe-area-inset-top) + 14px) 18px 0;
+}
+.back {
+  width: 42px; height: 42px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%;
+  background: rgba(255,255,255,0.5); color: #12141a; cursor: pointer;
+}
+.skip { border: none; background: none; font-size: 16px; font-weight: 700; color: #2f6bff; cursor: pointer; padding: 8px; }
+.body { position: relative; z-index: 1; flex: 1; padding: 6px 24px 12px; }
+.title { margin: 8px 0 8px; font-size: clamp(28px, 8.4vw, 36px); font-weight: 800; letter-spacing: -0.02em; }
+.sub { margin: 0 0 26px; font-size: 15px; font-weight: 400; line-height: 1.5; color: #5b6472; }
+
+.field { margin-bottom: 20px; }
+.label { display: block; margin-bottom: 8px; font-size: 15px; font-weight: 700; color: #12141a; }
+.wrap {
+  display: flex; align-items: center; height: 56px;
+  background: #fff; border: 1.5px solid #e3e8f0; border-radius: 14px; padding: 0 14px;
+  transition: border-color 0.15s ease;
+}
+.wrap:focus-within { border-color: #2f6bff; }
+.lead { display: flex; color: #8b93a1; margin-right: 10px; }
+.input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font-size: 15.5px; font-weight: 500; color: #12141a; }
+.input.empty { color: #9aa1ad; }
+
+/* select with unit suffix (cm / kg) */
+.selectWrap {
+  position: relative;
+  display: flex; align-items: center; height: 56px;
+  background: #fff; border: 1.5px solid #e3e8f0; border-radius: 14px; padding: 0 14px;
+}
+.select {
+  flex: 1; min-width: 0;
+  appearance: none; -webkit-appearance: none;
+  border: none; outline: none; background: transparent;
+  font-size: 15.5px; font-weight: 500; color: #12141a;
+  padding-right: 74px;
+}
+.select.empty { color: #9aa1ad; font-weight: 400; }
+.selchev { position: absolute; right: 58px; display: flex; color: #4a5162; pointer-events: none; }
+.unitSep { position: absolute; right: 46px; width: 1px; height: 26px; background: #e3e8f0; }
+.unit { position: absolute; right: 14px; font-size: 15px; font-weight: 500; color: #6b7280; }
+
+/* gender cards */
+.genders { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.gender {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 18px 6px;
+  background: #fff; border: 1.5px solid #e3e8f0; border-radius: 16px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+}
+.gender:active { transform: scale(0.97); }
+.genderOn { border-color: #2f6bff; border-width: 2px; background: #f4f8ff; }
+.genderIco { display: flex; }
+.genderLabel { font-size: 15px; font-weight: 600; color: #12141a; }
+
+/* pinned footer */
+.footer {
+  position: relative; z-index: 1;
+  padding: 12px 24px calc(env(safe-area-inset-bottom) + 22px);
+}
+.primary {
+  width: 100%; height: 56px;
+  border: none; border-radius: 999px;
+  background: #101114; color: #fff;
+  font-size: 16px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 10px 24px rgba(16,17,20,0.26);
+  transition: transform 0.12s ease;
+}
+.primary:active { transform: scale(0.98); }
+
+@media (prefers-reduced-motion: reduce) { .gender, .primary, .wrap { transition: none; } }
+

@@ -1,0 +1,11 @@
+{
+  "appId": "com.onchikitsa.user",
+  "appName": "OnChikitsa User",
+  "webDir": "out",
+  "plugins": {
+    "FirebaseAuthentication": {
+      "skipNativeAuth": false,
+      "providers": ["phone"]
+    }
+  }
+}

@@ -1,0 +1,65 @@
+import { Types, type ClientSession, type FilterQuery } from 'mongoose';
+import { Clinic, type ClinicDoc } from './clinic.model';
+import type { ClinicStatus } from '../../utils/constants';
+
+export interface ClinicListFilters {
+  search?: string;
+  status?: ClinicStatus;
+  from?: Date;
+  to?: Date;
+}
+
+function escapeRegex(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Data-access layer for clinics. Query construction lives here, out of services. */
+export const clinicRepository = {
+  buildFilter(filters: ClinicListFilters): FilterQuery<ClinicDoc> {
+    const query: FilterQuery<ClinicDoc> = {};
+    if (filters.status) query.status = filters.status;
+    if (filters.search) {
+      const rx = new RegExp(escapeRegex(filters.search.trim()), 'i');
+      query.$or = [{ name: rx }, { phone1: rx }, { phone2: rx }, { email: rx }];
+    }
+    if (filters.from || filters.to) {
+      query.createdAt = {};
+      if (filters.from) query.createdAt.$gte = filters.from;
+      if (filters.to) query.createdAt.$lte = filters.to;
+    }
+    return query;
+  },
+
+  async list(
+    filter: FilterQuery<ClinicDoc>,
+    skip: number,
+    limit: number,
+  ): Promise<{ items: ClinicDoc[]; total: number }> {
+    const [items, total] = await Promise.all([
+      Clinic.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean<ClinicDoc[]>(),
+      Clinic.countDocuments(filter),
+    ]);
+    return { items, total };
+  },
+
+  findById(id: string, session?: ClientSession | null): Promise<ClinicDoc | null> {
+    if (!Types.ObjectId.isValid(id)) return Promise.resolve(null);
+    return Clinic.findById(id).session(session ?? null).exec();
+  },
+
+  findByFirebaseUid(firebaseUid: string): Promise<ClinicDoc | null> {
+    return Clinic.findOne({ firebaseUid }).exec();
+  },
+
+  create(data: Partial<ClinicDoc>): Promise<ClinicDoc> {
+    return Clinic.create(data);
+  },
+
+  countByStatus(status: ClinicStatus): Promise<number> {
+    return Clinic.countDocuments({ status });
+  },
+
+  count(filter: FilterQuery<ClinicDoc> = {}): Promise<number> {
+    return Clinic.countDocuments(filter);
+  },
+};

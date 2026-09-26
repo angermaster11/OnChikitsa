@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Secrets & local env (never commit)
+.env
+.env.local
+*.local
+serviceAccount.json
+*serviceAccount*.json
+
+# Local dev database (mongodb-memory-server persistent data)
+.dev-db/
+
+# Logs
+*.log

@@ -1,0 +1,25 @@
+{
+  "name": "onchikitsa",
+  "version": "1.0.0",
+  "private": true,
+  "description": "OnChikitsa monorepo: backend + landing + admin + 2 mobile apps",
+  "scripts": {
+    "install:all": "npm install && npm --prefix backend install && npm --prefix frontend install && npm --prefix admin install && npm --prefix OnChikitsa_user install && npm --prefix OnChikitsa_clinic install",
+    "sync-env": "node scripts/sync-env.js",
+
+    "backend": "npm --prefix backend run dev",
+    "frontend": "npm --prefix frontend run dev",
+    "admin": "npm --prefix admin run dev",
+
+    "mobile:user": "npm run sync-env && npm --prefix OnChikitsa_user run mobile",
+    "mobile:clinic": "npm run sync-env && npm --prefix OnChikitsa_clinic run mobile",
+    "mobile:all": "npm run mobile:user && npm run mobile:clinic",
+
+    "web": "npm run sync-env && concurrently -n backend,frontend,admin -c blue,green,magenta \"npm run backend\" \"npm run frontend\" \"npm run admin\"",
+    "server": "npm run sync-env && concurrently -n backend,frontend,admin,mobile -c blue,green,magenta,yellow \"npm run backend\" \"npm run frontend\" \"npm run admin\" \"npm run mobile:all\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "dotenv": "^16.4.7"
+  }
+}

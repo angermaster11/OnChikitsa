@@ -1,0 +1,84 @@
+/* Notifications permission screen — shown once, right after the clinic
+   register wizard. Teal (#00cfba) + Poppins, matching the whole entry flow.
+   Self-contained CSS Module; light-only; touches no shared globals. */
+
+.root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  padding: calc(var(--sat, 0px) + 14px) 24px calc(var(--sab, 0px) + 22px);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* illustration + copy fill the space above the buttons */
+.hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 12px 0;
+}
+.art {
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  margin-bottom: 18px;
+}
+.title {
+  margin: 0;
+  font-size: clamp(30px, 8.6vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: #1a1d29;
+}
+.sub {
+  margin: 14px 0 0;
+  max-width: 34ch;
+  font-size: clamp(15px, 4.2vw, 17px);
+  font-weight: 400;
+  line-height: 1.6;
+  color: #5f6570;
+}
+
+/* footer buttons */
+.footer {
+  padding-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.primary {
+  height: 56px;
+  width: 100%;
+  border: 0;
+  border-radius: 16px;
+  background: #00cfba;
+  color: #fff;
+  font-family: inherit;
+  font-size: 16.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 207, 186, 0.28);
+  transition: transform 120ms ease, box-shadow 120ms ease, opacity 140ms ease;
+}
+.primary:active { transform: translateY(1px) scale(0.996); box-shadow: 0 4px 12px rgba(0, 207, 186, 0.22); }
+.primary:disabled { opacity: 0.55; box-shadow: none; cursor: default; }
+.secondary {
+  height: 56px;
+  width: 100%;
+  border: 1.5px solid #e6eaf0;
+  border-radius: 16px;
+  background: #fff;
+  color: #1a1d29;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+.secondary:active { background: #f6f8fb; border-color: #dce1e8; }

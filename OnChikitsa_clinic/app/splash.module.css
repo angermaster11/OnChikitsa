@@ -1,0 +1,76 @@
+/* Splash — minimal white lockup.
+   Sequence: logo fades/scales in dead-centre → glides slightly left as the
+   "OnChikitsa" wordmark slides in from the right → clean centred lockup.
+   Self-contained (CSS Module + next/font) so it touches no shared styles. */
+
+.root {
+  min-height: 100dvh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #fff;
+  padding: var(--sat, 0px) 16px var(--sab, 0px);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.lockup {
+  --wm: clamp(30px, 8.6vw, 42px);      /* wordmark size drives the whole lockup */
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--wm) * 0.5);
+  transform: translateX(var(--dx, 0px));
+  will-change: transform;
+}
+
+.logo {
+  width: calc(var(--wm) * 1.4);
+  height: calc(var(--wm) * 1.4);
+  flex: none;
+  display: block;
+  object-fit: contain;                 /* square source — never stretched */
+  opacity: 0;
+  transform: scale(0.84);
+  will-change: opacity, transform;
+  -webkit-user-drag: none;
+}
+
+.word {
+  font-size: var(--wm);
+  font-weight: 700;
+  letter-spacing: -0.006em;
+  line-height: 1;
+  color: #26272b;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(26px);
+  will-change: opacity, transform;
+}
+
+/* --- run: transitions + final values are applied together so adding the class
+   animates from the initial state --- */
+.run .logo {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 480ms ease, transform 520ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.run .lockup {
+  transform: translateX(0);
+  transition: transform 600ms cubic-bezier(0.4, 0, 0.2, 1) 500ms;
+}
+.run .word {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 520ms ease 560ms, transform 600ms cubic-bezier(0.2, 0.7, 0.2, 1) 560ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lockup { transform: none !important; }
+  .logo, .word {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}

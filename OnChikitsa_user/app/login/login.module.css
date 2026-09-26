@@ -1,0 +1,176 @@
+/* Sign-in ("Welcome back") — sky hero with a tilted appointment mockup, then a
+   white sheet with the phone sign-in form. Self-contained module. */
+
+.root {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #eaf3ff;
+  color: #12141a;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.sky {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(85% 55% at 22% 24%, rgba(255,206,220,0.7) 0%, rgba(255,206,220,0) 55%),
+    radial-gradient(75% 46% at 86% 14%, rgba(255,222,232,0.58) 0%, rgba(255,222,232,0) 55%),
+    linear-gradient(180deg, #3f9bff 0%, #62b0ff 30%, #9ccdff 58%, #d5e9ff 84%, #eef6ff 100%);
+}
+
+.hero {
+  position: relative;
+  z-index: 1;
+  padding: calc(env(safe-area-inset-top) + 30px) 26px 8px;
+  color: #ffffff;
+}
+.title {
+  margin: 0 0 8px;
+  font-size: clamp(28px, 8.4vw, 34px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 12px rgba(20,50,90,0.18);
+}
+.subtitle {
+  margin: 0;
+  max-width: 300px;
+  font-size: 14.5px;
+  font-weight: 400;
+  line-height: 1.5;
+  opacity: 0.96;
+}
+
+/* ---- tilted phone / appointment mockup ---- */
+.phoneMock {
+  position: relative;
+  width: 170px;
+  margin: 20px auto 4px;
+  padding: 10px;
+  background: linear-gradient(160deg, #1b1e29, #2a2f40);
+  border-radius: 26px;
+  box-shadow: 0 22px 46px rgba(15,30,70,0.34);
+  transform: rotate(6deg);
+}
+.notch {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  width: 44px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.35);
+}
+.apptCard {
+  margin-top: 16px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.apptLabel { font-size: 10.5px; font-weight: 600; color: #8b93a1; text-transform: uppercase; letter-spacing: 0.04em; }
+.apptTime { font-size: 22px; font-weight: 800; color: #12141a; letter-spacing: -0.01em; }
+.apptDoc { font-size: 13px; font-weight: 500; color: #3a4150; }
+.apptBadge {
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-top: 3px; padding: 4px 10px;
+  border-radius: 999px; background: #e6f7ee; color: #12a150;
+  font-size: 11.5px; font-weight: 700;
+}
+
+/* ---- white sheet ---- */
+.sheet {
+  position: relative;
+  z-index: 2;
+  margin-top: auto;
+  background: #ffffff;
+  border-radius: 30px 30px 0 0;
+  box-shadow: 0 -14px 44px rgba(20,45,90,0.14);
+  padding: 26px 24px calc(env(safe-area-inset-bottom) + 22px);
+}
+.sheetTitle { margin: 0 0 4px; font-size: 23px; font-weight: 800; letter-spacing: -0.01em; color: #12141a; }
+.sheetSub { margin: 0 0 18px; font-size: 14px; font-weight: 400; color: #5b6472; }
+
+/* phone field */
+.phone {
+  display: flex;
+  align-items: center;
+  height: 54px;
+  background: #fff;
+  border: 1.5px solid #e3e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+.phone:focus-within { border-color: #2f6bff; }
+.cc {
+  position: relative;
+  display: flex; align-items: center; gap: 4px;
+  padding: 0 12px; height: 100%;
+  font-size: 15px; font-weight: 600; color: #12141a;
+  cursor: pointer;
+}
+.cc select { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.flag { font-size: 18px; }
+.chev { display: flex; color: #8b93a1; }
+.sep { width: 1px; height: 26px; background: #e3e8f0; }
+.num {
+  flex: 1; min-width: 0; height: 100%;
+  border: none; outline: none; background: transparent;
+  padding: 0 14px; font-size: 16px; font-weight: 500; color: #12141a;
+}
+
+/* buttons + footer */
+.primary {
+  width: 100%;
+  height: 54px;
+  margin-top: 16px;
+  border: none;
+  border-radius: 999px;
+  background: #101114;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(16,17,20,0.26);
+  transition: transform 0.12s ease, opacity 0.15s ease;
+}
+.primary:active { transform: scale(0.98); }
+.primary:disabled { opacity: 0.4; box-shadow: none; cursor: default; }
+
+.divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 20px 0;
+  color: #9aa1ad; font-size: 12px; font-weight: 600;
+}
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #e6e9f0; }
+
+.google {
+  width: 100%;
+  height: 52px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  border: 1.5px solid #e3e8f0;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #12141a;
+  font-size: 15px; font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.15s ease;
+}
+.google:active { transform: scale(0.98); background: #f7f9fc; }
+
+.legal {
+  margin: 18px 0 0;
+  text-align: center;
+  font-size: 12px; font-weight: 400; line-height: 1.5; color: #8b93a1;
+}
+.legal a { color: #2f6bff; font-weight: 600; text-decoration: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .primary, .google { transition: none; }
+}
+
+
+

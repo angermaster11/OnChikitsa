@@ -1,0 +1,123 @@
+/* Bookings — Live queue + Past visits. Gray canvas + white cards, purple accent,
+   literal hex so OS dark mode can't flip the palette. The Live card mimics a
+   clinic queue: your token vs the token being served now. Mirrors explore/clinic. */
+.screen {
+  min-height: 100dvh;
+  background: #f4f4f7;
+  color: #16161a;
+  padding-bottom: calc(74px + env(safe-area-inset-bottom));
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+.head { padding: calc(env(safe-area-inset-top) + 16px) 20px 2px; }
+.title { margin: 0; font: 800 26px/1.1 var(--font-sans); letter-spacing: -0.02em; color: #0e0e12; }
+.sub { margin: 4px 0 0; font: 500 13.5px var(--font-sans); color: #6c6c75; }
+.tabs {
+  display: flex; gap: 6px; margin: 16px 20px 0;
+  background: #ececf0; border-radius: 14px; padding: 5px;
+}
+.tabBtn {
+  flex: 1; border: 0; cursor: pointer; background: none; color: #6c6c75;
+  font: 700 13.5px var(--font-sans); padding: 10px 0; border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+}
+.tabBtn.on { background: #fff; color: #16161a; box-shadow: 0 3px 10px rgba(20, 20, 45, 0.08); }
+.liveDot {
+  width: 7px; height: 7px; border-radius: 999px; background: #e5484d; flex: 0 0 auto;
+  box-shadow: 0 0 0 0 rgba(229, 72, 77, 0.5); animation: pulse 1.6s infinite;
+}
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0.5); }
+  70% { box-shadow: 0 0 0 7px rgba(229, 72, 77, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0); }
+}
+.list { display: flex; flex-direction: column; gap: 14px; padding: 16px 20px 8px; }
+.liveCard {
+  background: #fff; border: 1px solid #ececf0; border-radius: 20px;
+  padding: 4px 18px 16px; box-shadow: 0 8px 22px rgba(20, 20, 45, 0.06);
+}
+.cardHead { display: flex; align-items: center; gap: 13px; padding: 15px 0 14px; }
+.logo {
+  flex: 0 0 auto; width: 52px; height: 52px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255, 255, 255, 0.95);
+}
+.hBody { flex: 1; min-width: 0; }
+.name { margin: 0; font: 700 15.5px var(--font-sans); color: #0e0e12; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meta { margin: 3px 0 0; font: 500 12px var(--font-sans); color: #6c6c75; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.liveTag {
+  flex: 0 0 auto; align-self: flex-start; display: inline-flex; align-items: center; gap: 6px;
+  background: #fdecec; color: #d13438; font: 800 10px var(--font-sans);
+  letter-spacing: 0.06em; padding: 5px 9px; border-radius: 999px;
+}
+.queue {
+  display: flex; align-items: stretch; gap: 12px;
+  background: #f7f7fa; border-radius: 16px; padding: 14px; margin-top: 2px;
+}
+.qCell { flex: 1; text-align: center; }
+.qLabel { margin: 0; font: 600 11px var(--font-sans); letter-spacing: 0.02em; color: #9a9aa4; text-transform: uppercase; }
+.qNum { margin: 5px 0 0; font: 800 32px var(--font-sans); line-height: 1; color: #16161a; }
+.qCell.you .qNum { color: #6a5cf0; }
+.qDiv { width: 1px; background: #e3e3ea; flex: 0 0 auto; }
+.times { display: flex; gap: 10px; margin-top: 14px; }
+.timeCell {
+  flex: 1; display: flex; align-items: center; gap: 9px;
+  border: 1px solid #ececf0; border-radius: 12px; padding: 10px 12px;
+}
+.timeCell svg { color: #6a5cf0; flex: 0 0 auto; }
+.tLabel { margin: 0; font: 600 10.5px var(--font-sans); color: #9a9aa4; text-transform: uppercase; letter-spacing: 0.02em; }
+.tVal { margin: 1px 0 0; font: 700 14px var(--font-sans); color: #16161a; }
+.status {
+  display: flex; align-items: center; gap: 9px; margin-top: 14px;
+  padding: 11px 14px; border-radius: 12px; font: 700 13px var(--font-sans);
+}
+.status.soon { background: #e7f7ec; color: #1a8a45; }
+.status.wait { background: #eef0ff; color: #4a3fce; }
+.status .waitTxt { margin-left: auto; font-weight: 600; opacity: 0.85; }
+.pastCard {
+  display: flex; align-items: center; gap: 13px;
+  background: #fff; border: 1px solid #ececf0; border-radius: 16px;
+  padding: 13px; box-shadow: 0 5px 16px rgba(20, 20, 45, 0.04);
+}
+.pastLogo {
+  flex: 0 0 auto; width: 48px; height: 48px; border-radius: 13px;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255, 255, 255, 0.92);
+}
+.pastBody { flex: 1; min-width: 0; }
+.pastName { margin: 0; font: 700 14.5px var(--font-sans); color: #0e0e12; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pastMeta { margin: 3px 0 0; font: 500 12px var(--font-sans); color: #6c6c75; }
+.pastBadge {
+  flex: 0 0 auto; align-self: flex-start; font: 700 10.5px var(--font-sans);
+  letter-spacing: 0.02em; padding: 5px 10px; border-radius: 999px; text-transform: uppercase;
+}
+.ok { background: #e7f7ec; color: #1a8a45; }
+.cancel { background: #f0f0f3; color: #8a8a93; }
+.empty { margin: 52px 24px; text-align: center; }
+.emptyIcon {
+  width: 66px; height: 66px; border-radius: 999px; margin: 0 auto 14px;
+  display: flex; align-items: center; justify-content: center;
+  background: #ececf0; color: #a8a8b0;
+}
+.emptyTitle { margin: 0; font: 700 15px var(--font-sans); color: #4a4a52; }
+.emptySub { margin: 6px 0 0; font: 500 13px var(--font-sans); color: #9a9aa4; }
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  display: flex; align-items: stretch;
+  background: rgba(255, 255, 255, 0.94);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  border-top: 1px solid #ededf1; padding-bottom: env(safe-area-inset-bottom);
+}
+.tab {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: none; border: 0; cursor: pointer; padding: 9px 0 7px;
+  color: #9a9aa4; font: 600 11px var(--font-sans);
+}
+.tab.active { color: #6a5cf0; }
+.tab:active { transform: scale(0.94); }
+.g1 { background: linear-gradient(135deg, #74d0a6, #c4efd6); }
+.g2 { background: linear-gradient(135deg, #ff9db3, #ffd6df); }
+.g3 { background: linear-gradient(135deg, #7fe0c8, #cdf5ea); }
+.g4 { background: linear-gradient(135deg, #ffc38a, #ffe6cc); }
+.g5 { background: linear-gradient(135deg, #9db4d4, #d6e2f2); }
+.g6 { background: linear-gradient(135deg, #7cc4ff, #cfe8ff); }

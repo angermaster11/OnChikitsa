@@ -1,0 +1,120 @@
+/* OTP verify — matches the login styling. Phone-based code (never email).
+   Teal primary (#00cfba). Self-contained CSS Module + next/font Poppins. */
+
+.root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  padding: calc(var(--sat, 0px) + 16px) 24px calc(var(--sab, 0px) + 20px);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.back {
+  width: 44px;
+  height: 44px;
+  margin: 0 0 12px -10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  color: #1a1d29;
+  cursor: pointer;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(26px, 7.6vw, 32px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #1a1d29;
+}
+.sub {
+  margin: 10px 0 0;
+  font-size: clamp(14.5px, 4vw, 16px);
+  font-weight: 400;
+  line-height: 1.55;
+  color: #5f6570;
+}
+.sub b { color: #1a1d29; font-weight: 700; white-space: nowrap; }
+
+.label {
+  display: block;
+  margin: 34px 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1d29;
+}
+
+.code {
+  width: 100%;
+  height: 60px;
+  border: 1.5px solid #dce1e8;
+  border-radius: 13px;
+  padding: 0 18px;
+  font-family: inherit;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.38em;
+  color: #1a1d29;
+  background: #fff;
+  outline: none;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.code::placeholder { color: #c2c8d2; letter-spacing: 0.38em; }
+.code:focus { border-color: #00cfba; box-shadow: 0 0 0 3px rgba(0, 207, 186, 0.15); }
+.code.bad { border-color: #e5484d; }
+
+.resend {
+  margin: 14px 2px 0;
+  font-size: 14.5px;
+  color: #5f6570;
+}
+.resend button {
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: #1a1d29;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.resend button:disabled { color: #9aa1ad; text-decoration: none; cursor: default; }
+.err { color: #e5484d; }
+
+.primary {
+  height: 56px;
+  width: 100%;
+  margin-top: 26px;
+  border: 0;
+  border-radius: 13px;
+  background: #00cfba;
+  color: #fff;
+  font-family: inherit;
+  font-size: 16.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 207, 186, 0.28);
+  transition: transform 120ms ease, box-shadow 120ms ease, opacity 140ms ease;
+}
+.primary:active { transform: translateY(1px) scale(0.996); box-shadow: 0 4px 12px rgba(0, 207, 186, 0.22); }
+.primary:disabled { opacity: 0.5; box-shadow: none; cursor: default; }
+
+.secondary {
+  height: 54px;
+  width: 100%;
+  margin-top: 12px;
+  border: 1.5px solid #dce1e8;
+  border-radius: 13px;
+  background: #fff;
+  color: #1a1d29;
+  font-family: inherit;
+  font-size: 15.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.secondary:active { background: #f6f8fb; border-color: #cfd6df; }

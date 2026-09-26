@@ -1,0 +1,330 @@
+/* Clinic registration wizard — teal (#00cfba) + Poppins, matching the
+   splash / onboarding / login / verify entry flow. Self-contained CSS Module;
+   touches no shared globals. Light-only. */
+
+.root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  padding: calc(var(--sat, 0px) + 14px) 24px calc(var(--sab, 0px) + 20px);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ---- header chrome ---- */
+.top {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 0 -10px;
+}
+.back {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  color: #1a1d29;
+  cursor: pointer;
+}
+.steplabel {
+  margin-left: auto;
+  margin-right: 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #8b93a1;
+}
+.progress {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0 22px;
+}
+.seg {
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  background: #e6eaf0;
+  transition: background 220ms ease;
+}
+.seg.on { background: #00cfba; }
+
+/* ---- titles ---- */
+.head { margin-bottom: 22px; }
+.h1 {
+  margin: 6px 0 0;
+  font-size: clamp(30px, 8.6vw, 38px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+  color: #1a1d29;
+}
+.title {
+  margin: 0;
+  font-size: clamp(23px, 6.8vw, 29px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.16;
+  color: #1a1d29;
+}
+.sub {
+  margin: 10px 0 0;
+  font-size: clamp(14.5px, 4vw, 16px);
+  font-weight: 400;
+  line-height: 1.55;
+  color: #5f6570;
+}
+
+/* ---- body / fields ---- */
+.body { flex: 1; }
+.group { margin-bottom: 20px; }
+.label {
+  display: block;
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1d29;
+}
+.opt { color: #9aa1ad; font-weight: 500; }
+/* text input with a leading icon */
+.inputwrap {
+  display: flex;
+  align-items: center;
+  height: 58px;
+  border: 1.5px solid #dce1e8;
+  border-radius: 13px;
+  padding: 0 14px;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.inputwrap:focus-within { border-color: #00cfba; box-shadow: 0 0 0 3px rgba(0, 207, 186, 0.15); }
+.lead { display: inline-flex; color: #8b93a1; margin-right: 10px; flex: none; }
+.input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 16px;
+  color: #1a1d29;
+}
+.input::placeholder { color: #9aa1ad; }
+
+/* phone box (matches login) */
+.phone {
+  display: flex;
+  align-items: stretch;
+  height: 58px;
+  border: 1.5px solid #dce1e8;
+  border-radius: 13px;
+  overflow: hidden;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.phone:focus-within { border-color: #00cfba; box-shadow: 0 0 0 3px rgba(0, 207, 186, 0.15); }
+.cc {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px 0 14px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1d29;
+  cursor: pointer;
+}
+.flag { font-size: 20px; line-height: 1; }
+.chev { display: inline-flex; color: #8b93a1; margin-left: -2px; }
+.cc select { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; font-size: 16px; }
+.sep { width: 1.5px; background: #e6eaf0; margin: 12px 0; }
+.num {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  padding: 0 14px;
+  font-family: inherit;
+  font-size: 16px;
+  color: #1a1d29;
+  background: transparent;
+}
+.num::placeholder { color: #9aa1ad; }
+/* select (years / average time) */
+.selectwrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 58px;
+  border: 1.5px solid #dce1e8;
+  border-radius: 13px;
+  padding: 0 14px;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.selectwrap:focus-within { border-color: #00cfba; box-shadow: 0 0 0 3px rgba(0, 207, 186, 0.15); }
+.select {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 16px;
+  color: #1a1d29;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.select.empty { color: #9aa1ad; }
+.selchev { display: inline-flex; color: #8b93a1; flex: none; pointer-events: none; }
+
+/* specialization grid */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.spec {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 16px 14px;
+  border: 1.5px solid #e6eaf0;
+  border-radius: 15px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+.spec:active { background: #f6f8fb; }
+.specOn { border-color: #00cfba; background: #e8faf7; }
+.specIco { display: inline-flex; color: #4b5563; flex: none; }
+.specOn .specIco { color: #00b3a1; }
+.specLabel { font-size: 13.5px; font-weight: 600; color: #1a1d29; line-height: 1.2; }
+.specCheck {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #00cfba;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+/* textarea */
+.taWrap {
+  position: relative;
+  border: 1.5px solid #dce1e8;
+  border-radius: 15px;
+  padding: 14px;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.taWrap:focus-within { border-color: #00cfba; box-shadow: 0 0 0 3px rgba(0, 207, 186, 0.15); }
+.taLead { position: absolute; top: 14px; left: 14px; color: #9aa1ad; }
+.textarea {
+  width: 100%;
+  min-height: 128px;
+  border: 0;
+  outline: none;
+  resize: none;
+  font-family: inherit;
+  font-size: 15.5px;
+  line-height: 1.55;
+  color: #1a1d29;
+  padding: 0 0 18px 28px;
+  background: transparent;
+}
+.textarea::placeholder { color: #9aa1ad; }
+.counter { position: absolute; right: 14px; bottom: 12px; font-size: 12.5px; color: #9aa1ad; }
+
+/* upload tiles */
+.upHead { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+.ratio { font-size: 12.5px; color: #9aa1ad; font-weight: 500; }
+.upTile {
+  position: relative;
+  width: 100%;
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 22px;
+  border: 1.6px dashed #cdd5df;
+  border-radius: 16px;
+  background: #fbfdff;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+.upTile.ratio { aspect-ratio: 16 / 9; min-height: 0; }
+.upTile:active { background: #f2fbf9; }
+.upOn { border-style: solid; border-color: #00cfba; background: #e8faf7; }
+.upCircle {
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  background: #d6f6f0;
+  color: #00b3a1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+.upText { font-size: 14.5px; font-weight: 700; color: #00b3a1; }
+.upHint { font-size: 12.5px; color: #9aa1ad; }
+/* consultation fee */
+.feeWrap {
+  display: flex;
+  align-items: stretch;
+  height: 58px;
+  border: 1.5px solid #dce1e8;
+  border-radius: 13px;
+  overflow: hidden;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.feeWrap:focus-within { border-color: #00cfba; box-shadow: 0 0 0 3px rgba(0, 207, 186, 0.15); }
+.feePrefix {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  background: #f4f6f9;
+  color: #5f6570;
+  font-size: 19px;
+  font-weight: 700;
+  flex: none;
+}
+.feeInput {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  padding: 0 15px;
+  font-family: inherit;
+  font-size: 16px;
+  color: #1a1d29;
+  background: transparent;
+}
+.feeInput::placeholder { color: #9aa1ad; }
+
+.hint { display: block; margin: 8px 2px 0; font-size: 12.5px; color: #8b93a1; }
+
+/* footer */
+.footer { padding-top: 22px; }
+.primary {
+  height: 56px;
+  width: 100%;
+  border: 0;
+  border-radius: 14px;
+  background: #00cfba;
+  color: #fff;
+  font-family: inherit;
+  font-size: 16.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 207, 186, 0.28);
+  transition: transform 120ms ease, box-shadow 120ms ease, opacity 140ms ease;
+}
+.primary:active { transform: translateY(1px) scale(0.996); box-shadow: 0 4px 12px rgba(0, 207, 186, 0.22); }
+.primary:disabled { opacity: 0.45; box-shadow: none; cursor: default; }

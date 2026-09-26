@@ -1,0 +1,144 @@
+/* Welcome / get-started (post-splash entry, replaces onboarding).
+   Bright sky-and-clouds backdrop with a social-proof collage, then a white
+   sheet with the headline and the two entry buttons. Self-contained module. */
+
+.root {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #eaf3ff;
+  color: #12141a;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* sky: azure top with soft pink cloud washes, fading to white at the base */
+.sky {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(85% 55% at 20% 26%, rgba(255,206,220,0.72) 0%, rgba(255,206,220,0) 55%),
+    radial-gradient(75% 48% at 88% 16%, rgba(255,222,232,0.6) 0%, rgba(255,222,232,0) 55%),
+    radial-gradient(70% 46% at 58% 52%, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0) 62%),
+    linear-gradient(180deg, #3f9bff 0%, #62b0ff 24%, #93c9ff 48%, #c8e2ff 72%, #eef6ff 100%);
+}
+
+.collage {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: calc(env(safe-area-inset-top) + 30px) 22px 14px;
+}
+
+/* ---- stats, each framed by a pair of laurels ---- */
+.stats { display: flex; gap: 16px; justify-content: center; width: 100%; }
+.stat { display: flex; align-items: center; gap: 3px; color: #ffffff; }
+.laurel { width: 22px; height: 40px; color: rgba(255,255,255,0.95); flex: none; }
+.statMid { display: flex; flex-direction: column; align-items: center; }
+.statNum { font-size: 20px; font-weight: 800; line-height: 1; letter-spacing: -0.01em; text-shadow: 0 1px 6px rgba(20,50,90,0.18); }
+.statLbl { font-size: 10.5px; font-weight: 500; margin-top: 3px; opacity: 0.95; }
+
+/* ---- testimonial ---- */
+.quote {
+  width: 100%;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 13px 18px;
+  background: rgba(255,255,255,0.92);
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(25,55,110,0.16);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.stars { display: flex; gap: 2px; color: #ffb020; }
+.quoteText { margin: 0; font-size: 13.5px; font-weight: 600; line-height: 1.35; color: #1a2233; text-align: center; }
+.quoteBy { font-size: 11.5px; font-weight: 500; color: #6b7280; }
+
+/* ---- before / now cards ---- */
+.cards { display: flex; justify-content: center; align-items: flex-end; gap: 6px; }
+.card {
+  width: 118px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 13px 14px;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 12px 32px rgba(25,55,110,0.18);
+}
+.before { transform: rotate(-7deg); }
+.now { transform: rotate(7deg); z-index: 2; }
+.cardTag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.before .cardTag { color: #ff5a5f; }
+.now .cardTag { color: #2f6bff; }
+.cardTime { font-size: 20px; font-weight: 800; color: #12141a; letter-spacing: -0.01em; }
+.bars { display: flex; align-items: flex-end; gap: 5px; height: 34px; }
+.bars span { flex: 1; border-radius: 3px 3px 2px 2px; }
+.before .bars span { background: linear-gradient(180deg, #ff8085, #ff5a5f); }
+.now .bars span { background: linear-gradient(180deg, #6aa0ff, #2f6bff); }
+
+/* ---- white sheet: headline + entry buttons ---- */
+.sheet {
+  position: relative;
+  z-index: 3;
+  margin-top: auto;
+  background: #ffffff;
+  border-radius: 30px 30px 0 0;
+  box-shadow: 0 -14px 44px rgba(20,45,90,0.14);
+  padding: 28px 24px calc(env(safe-area-inset-bottom) + 24px);
+}
+.title {
+  margin: 0 0 10px;
+  font-size: clamp(26px, 7.8vw, 32px);
+  font-weight: 800;
+  line-height: 1.14;
+  letter-spacing: -0.02em;
+  color: #12141a;
+}
+.blue { color: #2f6bff; }
+.sub {
+  margin: 0 0 22px;
+  font-size: 14.5px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #5b6472;
+}
+.primary, .ghost {
+  width: 100%;
+  height: 54px;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.15s ease;
+}
+.primary {
+  border: none;
+  background: #101114;
+  color: #ffffff;
+  margin-bottom: 12px;
+  box-shadow: 0 10px 24px rgba(16,17,20,0.28);
+}
+.ghost {
+  background: #ffffff;
+  color: #12141a;
+  border: 1.5px solid #e3e8f0;
+}
+.primary:active, .ghost:active { transform: scale(0.98); }
+
+@media (prefers-reduced-motion: reduce) {
+  .primary, .ghost { transition: none; }
+}
+
+

@@ -1,0 +1,141 @@
+/* Onboarding — 3-slide intro matching the illustrated reference.
+   Layout: illustration → centred navy title → grey subtitle → progress dots →
+   full-width teal primary → outline "Skip for now".  Self-contained CSS Module
+   (+ next/font Poppins) so it touches no shared globals. Light-only. */
+
+.root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  padding: calc(var(--sat, 0px) + 12px) 24px calc(var(--sab, 0px) + 20px);
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Illustration fills the flexible upper region and stays centred. */
+.art {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0 8px;
+}
+/* Soft mint card behind the art. Its colour matches the tint baked into each
+   PNG, so the illustration blends seamlessly and its light elements (white
+   coats, phone cards) keep contrast instead of washing into the page. The
+   fixed aspect-ratio keeps every slide the same height — no layout jump. */
+.panel {
+  width: 100%;
+  max-width: 340px;
+  aspect-ratio: 4 / 3;
+  background: #e8f5ef;
+  border-radius: 24px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.illus {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;             /* fixed aspect — never stretched */
+  -webkit-user-drag: none;
+  animation: pop 500ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.copy {
+  text-align: center;
+  padding: 0 4px;
+}
+.title {
+  margin: 0 0 10px;
+  font-size: clamp(22px, 6.4vw, 28px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: #263847;
+  animation: rise 460ms ease both;
+}
+.text {
+  margin: 0 auto;
+  max-width: 300px;
+  font-size: clamp(14px, 3.8vw, 15.5px);
+  font-weight: 400;
+  line-height: 1.55;
+  color: #7e7c7d;
+  animation: rise 460ms ease 45ms both;
+}
+
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 24px 0 22px;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #d7e2df;
+  transition: width 260ms ease, background 260ms ease;
+}
+.active {
+  width: 22px;
+  background: #00cfba;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.primary {
+  height: 54px;
+  border: 0;
+  border-radius: 14px;
+  background: #00cfba;
+  color: #fff;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 207, 186, 0.28);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.primary:active {
+  transform: translateY(1px) scale(0.995);
+  box-shadow: 0 4px 12px rgba(0, 207, 186, 0.22);
+}
+.skip {
+  height: 52px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1.5px solid #e6ebf1;
+  color: #5a6472;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.skip:active {
+  border-color: #cfd8e3;
+  color: #263847;
+}
+
+@keyframes pop {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .illus, .title, .text { animation: none; }
+  .dot { transition: none; }
+}

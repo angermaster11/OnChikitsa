@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "870192958860",
+    "project_id": "rangam-84f53",
+    "storage_bucket": "rangam-84f53.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:870192958860:android:5de565f6c7e77ab62d5aa9",
+        "android_client_info": {
+          "package_name": "com.onchikitsa.clinic"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA9Npgcu9dQRJzclSrHB4PFkKxoryf1o_Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:870192958860:android:929c5750d9e4bc772d5aa9",
+        "android_client_info": {
+          "package_name": "com.onchikitsa.user"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA9Npgcu9dQRJzclSrHB4PFkKxoryf1o_Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

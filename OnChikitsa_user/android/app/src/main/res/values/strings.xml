@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">OnChikitsa User</string>
+    <string name="title_activity_main">OnChikitsa User</string>
+    <string name="package_name">com.onchikitsa.user</string>
+    <string name="custom_url_scheme">com.onchikitsa.user</string>
+</resources>
