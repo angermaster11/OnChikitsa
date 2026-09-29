@@ -7,7 +7,6 @@ import TopBar from '../_components/TopBar';
 import Avatar from '../_components/Avatar';
 import EmptyState from '../_components/EmptyState';
 import { Plus, Search, Stethoscope, ChevronRight } from '../_components/icons';
-import { rupee } from '../_lib/data';
 import { tapLight } from '../_lib/haptic';
 import { doctorApi } from '../_lib/api';
 
@@ -18,7 +17,6 @@ function toRow(d) {
     name: d.name || 'Doctor',
     spec: d.specialization || 'General',
     exp: Number.isFinite(d.experience) ? `${d.experience} yrs` : '',
-    fee: d.consultationFee || 0,
     active: d.status !== 'INACTIVE',
     photo: d.photo || '',
   };
@@ -110,7 +108,6 @@ export default function Doctors() {
                   <span className="lr-sub">{d.spec}{d.exp ? ` · ${d.exp}` : ''}</span>
                 </span>
                 <span className="lr-end">
-                  <span className="lr-price">{rupee(d.fee)}</span>
                   <span className={`badge ${d.active ? 'badge-success' : 'badge-muted'}`}>
                     <span className="badge-dot" />
                     {d.active ? 'Active' : 'Inactive'}

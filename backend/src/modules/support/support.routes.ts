@@ -41,3 +41,9 @@ export const clinicSupportRoutes = Router();
 clinicSupportRoutes.use(firebaseAuth('CLINIC'));
 clinicSupportRoutes.post('/', validate({ body: createTicketSchema }), supportController.create);
 clinicSupportRoutes.get('/', supportController.listMine);
+clinicSupportRoutes.get('/:id', validate({ params: idParamSchema }), supportController.getMine);
+clinicSupportRoutes.post(
+  '/:id/respond',
+  validate({ params: idParamSchema, body: respondSchema }),
+  supportController.respondMine,
+);

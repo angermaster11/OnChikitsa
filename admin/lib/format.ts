@@ -37,3 +37,15 @@ export function orDash(value?: string | number | null): string {
   if (value === undefined || value === null || value === '') return '—';
   return String(value);
 }
+
+/**
+ * Format integer paise as Indian rupees, e.g. 53850 → "₹538.50".
+ * All backend money is stored in paise; this is the single display helper.
+ */
+export function formatCurrency(paise?: number | null): string {
+  if (paise === undefined || paise === null || Number.isNaN(paise)) return '—';
+  return `₹${(paise / 100).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}

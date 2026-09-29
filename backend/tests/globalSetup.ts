@@ -21,4 +21,10 @@ export default async function globalSetup(): Promise<void> {
   process.env.SUPER_ADMIN_EMAIL = 'superadmin@test.local';
   process.env.SUPER_ADMIN_PASSWORD = 'SuperSecret123';
   process.env.LOG_LEVEL = 'silent';
+  // Razorpay keys — dummy values so env validates and the signature/webhook unit
+  // tests can run. No test hits the real Razorpay network (orders.create is never
+  // called in tests); the secrets only drive the local HMAC verification.
+  process.env.RAZORPAY_KEY_ID = 'rzp_test_dummykey';
+  process.env.RAZORPAY_KEY_SECRET = 'rzp_test_dummysecret';
+  process.env.RAZORPAY_WEBHOOK_SECRET = 'whsec_test_dummy';
 }

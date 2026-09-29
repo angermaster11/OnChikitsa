@@ -84,7 +84,7 @@
 }
 .active {
   width: 22px;
-  background: #00cfba;
+  background: var(--primary);
 }
 
 .actions {
@@ -96,7 +96,7 @@
   height: 54px;
   border: 0;
   border-radius: 14px;
-  background: #00cfba;
+  background: var(--primary);
   color: #fff;
   font-family: inherit;
   font-size: 16px;

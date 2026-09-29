@@ -83,6 +83,21 @@ export const SettingsIcon = (p: IconProps) => (
   </svg>
 );
 
+export const PaymentsIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="2" y="5" width="20" height="14" rx="2" />
+    <path d="M2 10h20M6 15h4" />
+  </svg>
+);
+
+export const WalletIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M3 7a2 2 0 012-2h12a2 2 0 012 2v1H5a2 2 0 00-2 2z" />
+    <path d="M3 8h16a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+    <circle cx="16.5" cy="13" r="1.3" />
+  </svg>
+);
+
 export const LogoutIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />

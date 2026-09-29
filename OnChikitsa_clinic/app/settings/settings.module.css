@@ -1,12 +1,12 @@
-/* Clinic Settings — pushed screen, clean white + single teal accent (#00cfba),
-   matching the dashboard / auth language. Poppins. Self-contained. */
+/* Clinic Settings — pushed screen, clean white + the green brand accent, driven
+   by the global design tokens (var(--primary) family) + the app-wide Open Sans. */
 
 .root {
-  --teal: #00cfba; --teal-strong: #00b3a1; --teal-ink: #068073;
-  --teal-tint: #e4f7f4; --teal-tint2: #d5f1eb;
-  --blue: #3f74f0; --blue-ink: #2e5fd8; --blue-tint: #eaf1ff;
-  --amber: #e0921f; --amber-ink: #b47212; --amber-tint: #fcefcf;
-  --red: #ef4a5a; --red-ink: #d13544; --red-tint: #fde7ea;
+  --teal: var(--primary); --teal-strong: var(--primary-strong); --teal-ink: var(--primary-ink);
+  --teal-tint: var(--primary-tint); --teal-tint2: var(--primary-tint-2);
+  --blue: var(--accent); --blue-ink: var(--accent-strong); --blue-tint: var(--accent-tint);
+  --amber: var(--warning); --amber-ink: var(--warning-ink); --amber-tint: var(--warning-tint);
+  --red: var(--danger); --red-ink: var(--danger); --red-tint: var(--danger-tint);
   --grey: #647082; --grey-tint: #eef1f0;
   --ink: #1a1d29; --ink2: #263847; --body: #5a6472; --muted: #7e7c7d; --faint: #9aa1ad;
   --line: #ebf0ee; --card: #ffffff;
@@ -51,6 +51,15 @@
 .statusVal { font-size: 18px; font-weight: 800; letter-spacing: -0.01em; }
 .c_green { color: var(--teal-ink); } .c_red { color: var(--red-ink); } .c_amber { color: var(--amber-ink); } .c_grey { color: var(--grey); }
 .statusSub { font-size: 12px; font-weight: 400; line-height: 1.4; color: var(--body); }
+
+/* status-change failure notice */
+.statusErr {
+  margin: -14px 2px 20px;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--red-ink);
+}
 
 /* status dropdown */
 .ddWrap { position: absolute; top: 16px; right: 16px; }

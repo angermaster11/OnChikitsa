@@ -40,6 +40,20 @@ const envSchema = z.object({
   CLOUDINARY_API_SECRET: z.string().optional(),
   CLOUDINARY_URL: z.string().optional(),
 
+  // Razorpay (the app's payment gateway) — optional so the server boots without
+  // it; the payment endpoints return 503 until KEY_ID + KEY_SECRET are set.
+  // Mirrors the Cloudinary optional-service pattern. WEBHOOK_SECRET is the value
+  // configured on the Razorpay webhook and is used to verify inbound signatures
+  // (checked separately by the webhook route, so it is not part of the gate).
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+
+  // Absolute base the gateway + in-app browser reach us at (webhook target, and
+  // the web checkout return). Prefer PUBLIC_BASE_URL, then the shared ngrok tunnel.
+  PUBLIC_BASE_URL: z.string().optional(),
+  NGROK_URL: z.string().optional(),
+
   SUPER_ADMIN_EMAIL: z.string().email().optional(),
   SUPER_ADMIN_PASSWORD: z.string().min(8).optional(),
   SUPER_ADMIN_NAME: z.string().default('Super Admin'),
@@ -89,6 +103,16 @@ export const env = {
   CLOUDINARY_API_KEY,
   CLOUDINARY_API_SECRET,
   cloudinaryConfigured: Boolean(CLOUDINARY_CLOUD_NAME && CLOUDINARY_API_KEY && CLOUDINARY_API_SECRET),
+  // Payments are available once both API keys are present. The webhook secret is
+  // checked separately by the webhook route (a deployment may verify checkout
+  // without yet wiring the webhook), so it is not part of this gate.
+  razorpayConfigured: Boolean(raw.RAZORPAY_KEY_ID && raw.RAZORPAY_KEY_SECRET),
+  // Absolute base the gateway + in-app browser use to reach our endpoints (webhook).
+  // Prefer an explicit PUBLIC_BASE_URL, then the shared ngrok tunnel, then local.
+  publicBaseUrl: (raw.PUBLIC_BASE_URL || raw.NGROK_URL || `http://localhost:${raw.PORT}`).replace(
+    /\/+$/,
+    '',
+  ),
 };
 
 export type Env = typeof env;

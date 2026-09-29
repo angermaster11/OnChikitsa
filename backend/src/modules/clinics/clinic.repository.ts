@@ -1,12 +1,19 @@
 import { Types, type ClientSession, type FilterQuery } from 'mongoose';
 import { Clinic, type ClinicDoc } from './clinic.model';
-import type { ClinicStatus } from '../../utils/constants';
+import { CLINIC_STATUS, type ClinicStatus } from '../../utils/constants';
 
 export interface ClinicListFilters {
   search?: string;
   status?: ClinicStatus;
   from?: Date;
   to?: Date;
+}
+
+/** Patient-facing list filters (banned/deleted clinics are always excluded). */
+export interface PatientClinicFilters {
+  search?: string;
+  specialty?: string;
+  city?: string;
 }
 
 function escapeRegex(input: string): string {
@@ -26,6 +33,26 @@ export const clinicRepository = {
       query.createdAt = {};
       if (filters.from) query.createdAt.$gte = filters.from;
       if (filters.to) query.createdAt.$lte = filters.to;
+    }
+    return query;
+  },
+
+  /** Filter for patient-visible clinics: never expose banned or deleted ones. */
+  buildPatientFilter(filters: PatientClinicFilters): FilterQuery<ClinicDoc> {
+    const query: FilterQuery<ClinicDoc> = {
+      status: { $nin: [CLINIC_STATUS.BANNED, CLINIC_STATUS.DELETED] },
+    };
+    if (filters.specialty) {
+      query.specialties = new RegExp(`^${escapeRegex(filters.specialty.trim())}$`, 'i');
+    }
+    // City is matched as a case-insensitive substring so a picked "Delhi" still
+    // finds a clinic saved as "New Delhi" (real-world city labels are messy).
+    if (filters.city) {
+      query['address.city'] = new RegExp(escapeRegex(filters.city.trim()), 'i');
+    }
+    if (filters.search) {
+      const rx = new RegExp(escapeRegex(filters.search.trim()), 'i');
+      query.$or = [{ name: rx }, { specialties: rx }, { specification: rx }, { 'address.city': rx }];
     }
     return query;
   },

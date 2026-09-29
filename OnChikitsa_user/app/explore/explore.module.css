@@ -75,6 +75,12 @@
   margin: 40px 20px; text-align: center;
   font: 600 14px var(--font-sans); color: #9a9aa4;
 }
+.stateBox {
+  margin: 36px 24px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  font: 600 13.5px var(--font-sans); color: #9a9aa4;
+}
+.stateBox svg { color: #c0392b; }
 .g1 { background: linear-gradient(135deg, #74d0a6, #c4efd6); }
 .g2 { background: linear-gradient(135deg, #ff9db3, #ffd6df); }
 .g3 { background: linear-gradient(135deg, #7fe0c8, #cdf5ea); }

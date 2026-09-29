@@ -1,59 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Poppins } from 'next/font/google';
 import {
-  ArrowLeft, TrendingUp, Calendar, Clock, ChevronDown, Plus,
+  ArrowLeft, TrendingUp, Clock, CheckCircle,
 } from '../_components/icons';
 import { tapLight } from '../_lib/haptic';
+import { earningsApi, ApiError } from '../_lib/api';
 import styles from './earnings.module.css';
 
-const poppins = Poppins({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
-  display: 'swap',
-  fallback: ['Segoe UI', 'system-ui', 'sans-serif'],
-});
+const rupeeP = (paise) => '₹' + (Number(paise || 0) / 100)
+  .toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const rupee = (n) => '₹' + Number(Math.abs(n)).toLocaleString('en-IN');
-
-// local transaction glyphs
-const InArrow = (p) => (
-  <svg width={p.size || 18} height={p.size || 18} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M17 7 7 17M7 9v8h8" />
-  </svg>
-);
-const OutArrow = (p) => (
-  <svg width={p.size || 18} height={p.size || 18} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M7 17 17 7M17 15V7H9" />
-  </svg>
-);
+// Local bank glyph (icons.js has no Bank export).
 const Bank = (p) => (
   <svg width={p.size || 18} height={p.size || 18} viewBox="0 0 24 24" fill="none" stroke="currentColor"
     strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M3 10 12 4l9 6" /><path d="M5 10v8M9 10v8M15 10v8M19 10v8" /><path d="M3 21h18" />
   </svg>
 );
-
-const STAT_C = { Credited: 'green', Completed: 'green', Processing: 'blue', Debited: 'red' };
-const KIND = { credit: { Ico: InArrow, c: 'green' }, withdraw: { Ico: Bank, c: 'blue' }, refund: { Ico: OutArrow, c: 'red' } };
-
-const TX = [
-  { id: 't1', kind: 'credit', title: 'Consultation Fee', who: 'Rahul Verma', date: 'Today, 10:30 AM', amt: 500, status: 'Credited' },
-  { id: 't2', kind: 'withdraw', title: 'Withdrawal to Bank', who: 'HDFC ••4821', date: 'Today, 09:10 AM', amt: -5000, status: 'Processing' },
-  { id: 't3', kind: 'credit', title: 'Consultation Fee', who: 'Priya Singh', date: 'Today, 09:30 AM', amt: 800, status: 'Credited' },
-  { id: 't4', kind: 'refund', title: 'Refund Issued', who: 'Amit Kumar', date: '25 Sep, 04:15 PM', amt: -300, status: 'Debited' },
-  { id: 't5', kind: 'credit', title: 'Consultation Fee', who: 'Sneha Gupta', date: '25 Sep, 11:00 AM', amt: 600, status: 'Credited' },
-  { id: 't6', kind: 'credit', title: 'Consultation Fee', who: 'Vikash Yadav', date: '24 Sep, 05:40 PM', amt: 450, status: 'Credited' },
-];
-const WD = [
-  { id: 'w1', kind: 'withdraw', title: 'Bank Transfer', who: 'HDFC ••4821', date: '25 Sep, 09:10 AM', amt: -5000, status: 'Processing' },
-  { id: 'w2', kind: 'withdraw', title: 'Bank Transfer', who: 'HDFC ••4821', date: '20 Sep, 02:30 PM', amt: -8000, status: 'Completed' },
-  { id: 'w3', kind: 'withdraw', title: 'Bank Transfer', who: 'HDFC ••4821', date: '12 Sep, 10:00 AM', amt: -6500, status: 'Completed' },
-];
 
 function WalletArt() {
   return (
@@ -73,95 +38,121 @@ function WalletArt() {
   );
 }
 
-export default function Wallet() {
+export default function Earnings() {
   const router = useRouter();
-  const [tab, setTab] = useState('tx');
-  const list = tab === 'tx' ? TX : WD;
+  const [sum, setSum] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setErr('');
+    try {
+      setSum(await earningsApi.getSummary());
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Could not load earnings.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const earnedPaise = sum?.clinicPayablePaise || 0;
+  const settledPaise = sum?.settledPaise || 0;
+  const pendingPaise = sum?.pendingPaise || 0;
+  const paidCount = sum?.paidCount || 0;
+  // Settlement-state card: what the clinic is waiting on from the admin.
+  const settle = pendingPaise > 0
+    ? { c: 'blue', Ic: Clock, t: 'Pending settlement', badge: 'Pending', sub: `${rupeeP(pendingPaise)} awaiting settlement from the platform` }
+    : earnedPaise > 0
+      ? { c: 'green', Ic: CheckCircle, t: 'All settled', badge: 'Settled', sub: 'The platform has settled your full share' }
+      : { c: 'blue', Ic: Bank, t: 'No earnings yet', badge: '—', sub: 'Your share appears here after your first paid booking' };
 
   return (
-    <main className={`${styles.root} ${poppins.className}`}>
+    <main className={styles.root}>
       <header className={styles.top}>
         <button className={styles.back} onClick={() => { tapLight(); router.back(); }} aria-label="Back">
           <ArrowLeft size={22} />
         </button>
         <div>
-          <h1 className={styles.title}>Wallet</h1>
-          <p className={styles.sub}>Manage your earnings and withdrawals</p>
+          <h1 className={styles.title}>Earnings</h1>
+          <p className={styles.sub}>Your consultation share</p>
         </div>
       </header>
 
       <div className={styles.scroll}>
-        <section className={styles.balance}>
-          <div className={styles.balMid}>
-            <span className={styles.balLbl}>Available Balance</span>
-            <span className={styles.balVal}>{rupee(12450)}</span>
-            <span className={styles.balSub}>Total Earnings: <b>{rupee(28320)}</b></span>
+        {err ? (
+          <div className={styles.txRow} style={{ display: 'block', textAlign: 'center', padding: 20 }}>
+            <p style={{ margin: '0 0 12px', color: 'var(--muted)', fontSize: 13.5 }}>{err}</p>
+            <button className="btn btn-outline" onClick={() => { tapLight(); load(); }}>Try again</button>
           </div>
-          <WalletArt />
-        </section>
-
-        <div className={styles.actions}>
-          <button className={styles.redeem} onClick={() => { tapLight(); router.push('/earnings/settlements'); }}>
-            <Bank size={17} />Redeem to Bank
-          </button>
-          <button className={styles.addBtn} onClick={() => tapLight()}>
-            <Plus size={17} />Add Money
-          </button>
-        </div>
-
-        <section className={styles.statRow}>
-          <div className={styles.statCol}>
-            <span className={styles.statV}>{rupee(8240)}</span>
-            <span className={styles.statL}>This Month</span>
-            <span className={styles.statUp}><TrendingUp size={12} />+12%</span>
-          </div>
-          <div className={styles.statCol}>
-            <span className={styles.statV}>46</span>
-            <span className={styles.statL}>Appointments</span>
-            <span className={styles.statMeta}><Calendar size={12} />Total</span>
-          </div>
-          <div className={styles.statCol}>
-            <span className={styles.statV}>{rupee(3500)}</span>
-            <span className={styles.statL}>Pending Payout</span>
-            <span className={styles.statProc}><Clock size={12} />Processing</span>
-          </div>
-        </section>
-
-        <div className={styles.tabs}>
-          <button className={`${styles.tabBtn} ${tab === 'tx' ? styles.tabOn : ''}`} onClick={() => { tapLight(); setTab('tx'); }}>Transaction History</button>
-          <button className={`${styles.tabBtn} ${tab === 'wd' ? styles.tabOn : ''}`} onClick={() => { tapLight(); setTab('wd'); }}>Withdrawal History</button>
-        </div>
-
-        <button className={styles.dropdown}><Calendar size={15} />All Transactions<ChevronDown size={15} /></button>
-
-        <h2 className={styles.recentH}>Recent Transactions</h2>
-        <div className={styles.list}>
-          {list.map((t) => {
-            const k = KIND[t.kind];
-            return (
-              <div key={t.id} className={styles.txRow}>
-                <span className={`${styles.txIc} ${styles['k_' + k.c]}`}><k.Ico size={18} /></span>
-                <span className={styles.txMid}>
-                  <span className={styles.txTitle}>{t.title}</span>
-                  <span className={styles.txSub}>{t.who} · {t.date}</span>
-                </span>
-                <span className={styles.txEnd}>
-                  <span className={`${styles.txAmt} ${t.amt < 0 ? styles.amtNeg : styles.amtPos}`}>
-                    {t.amt < 0 ? '-' : '+'}{rupee(t.amt)}
-                  </span>
-                  <span className={`${styles.txPill} ${styles['p_' + STAT_C[t.status]]}`}>{t.status}</span>
-                </span>
+        ) : loading ? (
+          <p style={{ padding: '24px 4px', color: 'var(--muted)', fontSize: 13.5 }}>Loading earnings…</p>
+        ) : (
+          <>
+            <section className={styles.balance}>
+              <div className={styles.balMid}>
+                <span className={styles.balLbl}>90% share earned</span>
+                <span className={styles.balVal}>{rupeeP(earnedPaise)}</span>
+                <span className={styles.balSub}>{paidCount} paid consultation{paidCount === 1 ? '' : 's'}</span>
               </div>
-            );
-          })}
-        </div>
-        <div style={{ height: 8 }} />
-      </div>
+              <WalletArt />
+            </section>
 
-      <div className={styles.footer}>
-        <button className={styles.redeemBig} onClick={() => { tapLight(); router.push('/earnings/settlements'); }}>
-          <Bank size={18} />Redeem to Bank Account
-        </button>
+            <div
+              className={styles.txRow}
+              style={{ marginBottom: 16 }}
+            >
+              <span className={`${styles.txIc} ${styles['k_' + settle.c]}`}><settle.Ic size={18} /></span>
+              <span className={styles.txMid}>
+                <span className={styles.txTitle}>{settle.t}</span>
+                <span className={styles.txSub} style={{ whiteSpace: 'normal' }}>{settle.sub}</span>
+              </span>
+              <span className={styles.txEnd}>
+                <span className={`${styles.txPill} ${styles['p_' + settle.c]}`}>{settle.badge}</span>
+              </span>
+            </div>
+
+            <section className={styles.statRow}>
+              <div className={styles.statCol}>
+                <span className={styles.statV}>{rupeeP(earnedPaise)}</span>
+                <span className={styles.statL}>Earned</span>
+                <span className={styles.statUp}><TrendingUp size={12} />90% share</span>
+              </div>
+              <div className={styles.statCol}>
+                <span className={styles.statV}>{rupeeP(settledPaise)}</span>
+                <span className={styles.statL}>Settled</span>
+                <span className={styles.statMeta}><CheckCircle size={12} />By admin</span>
+              </div>
+              <div className={styles.statCol}>
+                <span className={styles.statV}>{rupeeP(pendingPaise)}</span>
+                <span className={styles.statL}>Pending</span>
+                <span className={styles.statProc}><Clock size={12} />Awaiting</span>
+              </div>
+            </section>
+
+            <h2 className={styles.recentH}>How settlement works</h2>
+            <div className={styles.txRow} style={{ alignItems: 'flex-start' }}>
+              <span className={`${styles.txIc} ${styles.k_green}`}><Bank size={18} /></span>
+              <span className={styles.txMid}>
+                <span className={styles.txTitle}>Settled by the platform</span>
+                <span className={styles.txSub} style={{ whiteSpace: 'normal' }}>
+                  The platform collects every consultation payment and keeps your 90% share safe.
+                  It settles your pending balance to you directly and marks it settled here.
+                </span>
+              </span>
+            </div>
+
+            <button
+              className="btn btn-outline btn-block"
+              style={{ marginTop: 14 }}
+              onClick={() => { tapLight(); router.push('/payments'); }}
+            >
+              View all payments
+            </button>
+          </>
+        )}
       </div>
     </main>
   );

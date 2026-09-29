@@ -7,16 +7,16 @@ import { flow } from '../_lib/flow';
 import styles from './location.module.css';
 
 const PLACES = [
-  { id: 'p1', title: 'New Delhi', sub: 'Delhi, India' },
-  { id: 'p2', title: 'New Delhi Railway Station', sub: 'Paharganj, New Delhi, Delhi' },
-  { id: 'p3', title: 'Noida Sector 18', sub: 'Noida, Uttar Pradesh' },
-  { id: 'p4', title: 'Cyber Hub', sub: 'DLF Cyber City, Gurugram, Haryana' },
-  { id: 'p5', title: 'MG Road', sub: 'Gurugram, Haryana' },
-  { id: 'p6', title: 'Connaught Place', sub: 'New Delhi, Delhi' },
-  { id: 'p7', title: 'Sector 62', sub: 'Noida, Uttar Pradesh' },
-  { id: 'p8', title: 'Golf Course Road', sub: 'Gurugram, Haryana' },
-  { id: 'p9', title: 'Saket', sub: 'South Delhi, Delhi' },
-  { id: 'p10', title: 'Indirapuram', sub: 'Ghaziabad, Uttar Pradesh' },
+  { id: 'p1', title: 'New Delhi', sub: 'Delhi, India', city: 'Delhi' },
+  { id: 'p2', title: 'New Delhi Railway Station', sub: 'Paharganj, New Delhi, Delhi', city: 'Delhi' },
+  { id: 'p3', title: 'Noida Sector 18', sub: 'Noida, Uttar Pradesh', city: 'Noida' },
+  { id: 'p4', title: 'Cyber Hub', sub: 'DLF Cyber City, Gurugram, Haryana', city: 'Gurugram' },
+  { id: 'p5', title: 'MG Road', sub: 'Gurugram, Haryana', city: 'Gurugram' },
+  { id: 'p6', title: 'Connaught Place', sub: 'New Delhi, Delhi', city: 'Delhi' },
+  { id: 'p7', title: 'Sector 62', sub: 'Noida, Uttar Pradesh', city: 'Noida' },
+  { id: 'p8', title: 'Golf Course Road', sub: 'Gurugram, Haryana', city: 'Gurugram' },
+  { id: 'p9', title: 'Saket', sub: 'South Delhi, Delhi', city: 'Delhi' },
+  { id: 'p10', title: 'Indirapuram', sub: 'Ghaziabad, Uttar Pradesh', city: 'Ghaziabad' },
 ];
 
 function Highlight({ text, query }) {
@@ -62,21 +62,21 @@ async function getCoords() {
   });
 }
 
-// Turn coordinates into a human "Area, Region" label via a free, keyless,
-// CORS-enabled client geocoder. Returns null on any failure (offline / blocked)
-// so the caller can fall back to a generic label.
+// Turn coordinates into a human "Area, Region" label + a structured city via a
+// free, keyless, CORS-enabled client geocoder. Returns `{ label, city }` (either
+// may be null) so the caller can both show a label and drive the city filter.
 async function reverseGeocode({ lat, lng }) {
   try {
     const res = await fetch(
       `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`,
     );
-    if (!res.ok) return null;
+    if (!res.ok) return { label: null, city: null };
     const d = await res.json();
     const area = d.locality || d.city || d.principalSubdivision;
     const region = d.principalSubdivision;
-    if (area && region && area !== region) return `${area}, ${region}`;
-    return area || region || null;
-  } catch { return null; }
+    const label = area && region && area !== region ? `${area}, ${region}` : (area || region || null);
+    return { label, city: d.city || d.locality || null };
+  } catch { return { label: null, city: null }; }
 }
 
 // Live place search (forward geocode / autocomplete) via Photon — free, keyless,
@@ -96,7 +96,7 @@ async function searchPlaces(query) {
       const sub = [...new Set([p.street, p.district, p.city, p.county, p.state, p.country])]
         .filter((x) => x && x !== title)
         .join(', ');
-      return { id: `ph-${p.osm_id || i}-${i}`, title, sub };
+      return { id: `ph-${p.osm_id || i}-${i}`, title, sub, city: p.city || p.county || p.state || '' };
     });
   } catch { return null; }
 }
@@ -129,10 +129,15 @@ export default function LocationPicker() {
     return () => { cancelled = true; clearTimeout(t); };
   }, [query]);
 
-  // Persist the chosen location and return to the dashboard, which reads it back
-  // and shows it in the header.
-  const choose = (label) => {
+  // Persist the chosen location LABEL + its structured city, then return to the
+  // dashboard. City drives the clinic filter (backend `?city=`); we prefer the
+  // structured city, fall back to the label's first comma-segment, and clear it
+  // for the generic "Current location" so an unknown place never dead-ends the
+  // list. Stored city stays short (e.g. "Delhi") so the contains-match is broad.
+  const choose = (label, city) => {
     flow.setLocation(label);
+    const derived = (city || '').trim() || (label || '').split(',')[0].trim();
+    flow.setCity(label === 'Current location' ? '' : derived);
     router.back();
   };
 
@@ -144,9 +149,9 @@ export default function LocationPicker() {
     setLocating(true);
     const coords = await getCoords();
     if (!coords) { setLocating(false); choose('Current location'); return; }
-    const label = (await reverseGeocode(coords)) || 'Current location';
+    const { label, city } = await reverseGeocode(coords);
     setLocating(false);
-    choose(label);
+    choose(label || 'Current location', city || '');
   };
 
   return (
@@ -180,7 +185,7 @@ export default function LocationPicker() {
           <ul className={styles.results}>
             {results.map((p) => (
               <li key={p.id}>
-                <button className={styles.result} onClick={() => choose(p.title)}>
+                <button className={styles.result} onClick={() => choose(p.title, p.city)}>
                   <span className={styles.rIcon}><MapPin size={20} /></span>
                   <span className={styles.rBody}>
                     <span className={styles.rTitle}><Highlight text={p.title} query={query} /></span>

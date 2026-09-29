@@ -1,35 +1,46 @@
 'use client';
 
-import { useState } from 'react';
+// Services now mirrors what the clinic picked during registration (its
+// `specialties[]`), edited from the clinic profile. No fees are shown here — a
+// clinic's default consultation fee lives on the profile / consultation step,
+// not per-service.
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Screen from '../_components/Screen';
 import TopBar from '../_components/TopBar';
-import Toggle from '../_components/Toggle';
 import EmptyState from '../_components/EmptyState';
-import { Plus, Search, Tag, Clock } from '../_components/icons';
-import { SERVICES, rupee } from '../_lib/data';
+import { Search, Tag, Stethoscope } from '../_components/icons';
+import { clinicApi } from '../_lib/api';
 import { tapLight } from '../_lib/haptic';
 
 export default function Services() {
   const router = useRouter();
   const [q, setQ] = useState('');
-  const [state, setState] = useState(() => Object.fromEntries(SERVICES.map((s) => [s.id, s.active])));
-  const go = (r) => { tapLight(); router.push(r); };
-  const toggle = (id) => (v) => setState((m) => ({ ...m, [id]: v }));
+  const [specs, setSpecs] = useState(null); // null = loading, [] = loaded/empty
+  const [err, setErr] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const me = await clinicApi.getMe();
+        if (alive) setSpecs(Array.isArray(me?.specialties) ? me.specialties : []);
+      } catch {
+        if (alive) { setSpecs([]); setErr(true); }
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
 
   const query = q.trim().toLowerCase();
-  const list = query ? SERVICES.filter((s) => s.name.toLowerCase().includes(query)) : SERVICES;
+  const all = specs || [];
+  const list = query ? all.filter((s) => s.toLowerCase().includes(query)) : all;
 
   return (
     <Screen>
       <TopBar
         title="Services"
-        subtitle={`${SERVICES.length} services`}
-        right={(
-          <button className="icon-btn" aria-label="Add service" onClick={() => go('/services/edit')}>
-            <Plus size={20} />
-          </button>
-        )}
+        subtitle={specs === null ? 'Loading…' : `${all.length} ${all.length === 1 ? 'service' : 'services'}`}
       />
       <div className="content">
         <div className="search">
@@ -43,36 +54,37 @@ export default function Services() {
           />
         </div>
 
-        {list.length === 0 ? (
+        {specs === null ? (
+          <div className="list" aria-busy="true">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="list-row" style={{ cursor: 'default' }}>
+                <span className="thumb-ic accent"><Stethoscope size={20} /></span>
+                <span className="lr-main"><span className="lr-title" style={{ opacity: 0.35 }}>Loading…</span></span>
+              </div>
+            ))}
+          </div>
+        ) : list.length === 0 ? (
           <EmptyState
             icon={<Tag size={30} />}
-            title="No services found"
-            hint={query ? `No service matches “${q.trim()}”.` : 'Add a service to start accepting bookings.'}
-            action={(
-              <button className="btn btn-primary" onClick={() => go('/services/edit')}>
-                <Plus size={18} /> Add service
+            title={query ? 'No services found' : err ? 'Couldn’t load services' : 'No services yet'}
+            hint={query
+              ? `No service matches “${q.trim()}”.`
+              : err
+                ? 'Check your connection and try again.'
+                : 'The specialities you picked during registration show up here. Update them from your clinic profile.'}
+            action={!query && !err ? (
+              <button className="btn btn-primary" onClick={() => { tapLight(); router.push('/profile'); }}>
+                Edit clinic profile
               </button>
-            )}
+            ) : null}
           />
         ) : (
           <div className="list">
-            {list.map((s) => (
-              <div key={s.id} className="list-row" style={{ cursor: 'default' }}>
-                <button
-                  type="button"
-                  onClick={() => go(`/services/edit?id=${s.id}`)}
-                  aria-label={`Edit ${s.name}`}
-                  style={{ display: 'flex', alignItems: 'center', gap: 13, flex: 1, minWidth: 0, background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', padding: 0 }}
-                >
-                  <span className="thumb-ic accent"><Tag size={20} /></span>
-                  <span className="lr-main">
-                    <span className="lr-title">{s.name}</span>
-                    <span className="lr-sub"><Clock size={13} /> {s.mins} min</span>
-                  </span>
-                </button>
-                <span className="lr-end">
-                  <span className="lr-price">{rupee(s.fee)}</span>
-                  <Toggle on={state[s.id]} onChange={toggle(s.id)} label={`Toggle ${s.name}`} />
+            {list.map((name) => (
+              <div key={name} className="list-row" style={{ cursor: 'default' }}>
+                <span className="thumb-ic accent"><Stethoscope size={20} /></span>
+                <span className="lr-main">
+                  <span className="lr-title">{name}</span>
                 </span>
               </div>
             ))}

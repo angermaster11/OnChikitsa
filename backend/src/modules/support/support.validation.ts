@@ -1,11 +1,13 @@
 import { z } from 'zod';
 import { paginationQuerySchema, objectIdSchema } from '../../utils/validators';
-import { TICKET_STATUS, TICKET_PRIORITY } from './supportTicket.model';
+import { TICKET_STATUS, TICKET_PRIORITY, TICKET_CATEGORY, RAISED_BY_TYPE } from './supportTicket.model';
 
-/** Staff list query: pagination + status/priority filters + free-text search. */
+/** Staff list query: pagination + status/priority/raiser/category + free-text search. */
 export const listTicketsQuerySchema = paginationQuerySchema.extend({
   status: z.nativeEnum(TICKET_STATUS).optional(),
   priority: z.nativeEnum(TICKET_PRIORITY).optional(),
+  raisedByType: z.nativeEnum(RAISED_BY_TYPE).optional(),
+  category: z.nativeEnum(TICKET_CATEGORY).optional(),
   search: z.string().trim().min(1).max(160).optional(),
 });
 
@@ -15,6 +17,8 @@ export const createTicketSchema = z
     subject: z.string().trim().min(1).max(160),
     message: z.string().trim().min(1).max(5000),
     priority: z.nativeEnum(TICKET_PRIORITY).default(TICKET_PRIORITY.MEDIUM),
+    category: z.nativeEnum(TICKET_CATEGORY).optional(),
+    attachments: z.array(z.string().url()).max(5).optional(),
   })
   .strict();
 

@@ -8,6 +8,7 @@ const KEYS = {
   phone: 'onchikitsa_phone',
   profile: 'onchikitsa_profile',
   location: 'onchikitsa_location',
+  city: 'onchikitsa_city',
   clinic: 'onchikitsa_clinic',
   bookings: 'onchikitsa_bookings',
   readNotifs: 'onchikitsa_read_notifs',
@@ -46,6 +47,12 @@ export const flow = {
   // dashboard falls back to the generic "Current location" label.
   getLocation: () => read(KEYS.location) || '',
   setLocation: (label) => write(KEYS.location, label || ''),
+
+  // The structured city derived from the chosen location, used to filter the
+  // clinic directory (backend `?city=` contains-match). Kept separate from the
+  // free-text location LABEL: empty → no city filter (show every city).
+  getCity: () => read(KEYS.city) || '',
+  setCity: (city) => write(KEYS.city, city || ''),
 
   // Which clinic the Explore list tapped into — the detail screen reads it back
   // (query-string-free so it survives Capacitor's static file serving).

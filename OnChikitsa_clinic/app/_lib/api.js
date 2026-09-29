@@ -101,6 +101,36 @@ export const clinicApi = {
   },
 };
 
+export const earningsApi = {
+  /**
+   * GET /clinic/earnings — settlement summary for this clinic:
+   * `{ clinicPayablePaise, settledPaise, pendingPaise, paidCount, currency }`.
+   * The platform collects every payment through Razorpay and holds the funds; this is
+   * the clinic's 90% share of all PAID bookings, split into what the admin has
+   * already settled (`settledPaise`) vs what is still pending settlement
+   * (`pendingPaise`). `clinicPayablePaise` is the total earned (pending + settled).
+   */
+  getSummary: () => request('/clinic/earnings'),
+  /**
+   * GET /clinic/earnings/payments — this clinic's own transactions, newest first.
+   * The envelope's paginated `data` is the items array (pagination is a sibling),
+   * so this resolves to the array directly. Each item carries the clinic's share
+   * in `breakdown.clinicAmountPaise` and its `settlement.status`
+   * ('PENDING' | 'PAID'). `status` filters by payment status server-side
+   * ('CREATED' | 'PAID' | 'FAILED' | 'REFUNDED'); `settlementStatus` filters by
+   * settlement. There is no clinic-scoped per-payment endpoint, so the detail
+   * screen resolves an id from this list.
+   */
+  listPayments: (params = {}) => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set('status', params.status);
+    if (params.settlementStatus) qs.set('settlementStatus', params.settlementStatus);
+    qs.set('page', String(params.page || 1));
+    qs.set('limit', String(params.limit || 50));
+    return request(`/clinic/earnings/payments?${qs.toString()}`);
+  },
+};
+
 export const doctorApi = {
   /** GET /clinic/doctors — this clinic's doctors (returns the items array). */
   list: async () => request('/clinic/doctors?limit=100'),
@@ -110,6 +140,42 @@ export const doctorApi = {
   update: async (id, payload) => request(`/clinic/doctors/${id}`, { method: 'PATCH', body: payload }),
   /** DELETE /clinic/doctors/:id — soft-delete a doctor. */
   remove: async (id) => request(`/clinic/doctors/${id}`, { method: 'DELETE' }),
+};
+
+export const appointmentApi = {
+  /**
+   * GET /clinic/appointments — this clinic's appointments, scoped to the token's
+   * clinic. `date` ("YYYY-MM-DD") narrows to one day; `status` filters server-side
+   * (single value). Returns the raw `{ items, pagination }`-less items array — the
+   * envelope's paginated `data` is the items list. We fetch a whole day at once
+   * (limit 100) and group/filter client-side, so callers rarely pass `status`.
+   */
+  list: async ({ date, status, page, limit = 100 } = {}) => {
+    const qs = new URLSearchParams();
+    if (date) qs.set('date', date);
+    if (status) qs.set('status', status);
+    if (page) qs.set('page', String(page));
+    if (limit) qs.set('limit', String(limit));
+    const q = qs.toString();
+    return request(`/clinic/appointments${q ? `?${q}` : ''}`);
+  },
+  /** GET /clinic/appointments/:id — one appointment (404 if not this clinic's). */
+  get: async (id) => request(`/clinic/appointments/${id}`),
+  /** PATCH /clinic/appointments/:id/status — advance workflow state. */
+  updateStatus: async (id, status) =>
+    request(`/clinic/appointments/${id}/status`, { method: 'PATCH', body: { status } }),
+};
+
+export const supportApi = {
+  /** POST /clinic/support — open a ticket (subject/message/category/priority/attachments). */
+  create: async (payload) => request('/clinic/support', { method: 'POST', body: payload }),
+  /** GET /clinic/support — this clinic's tickets (returns the items array). */
+  listMine: async () => request('/clinic/support?limit=100'),
+  /** GET /clinic/support/:id — one of this clinic's tickets (404 if not ours). */
+  get: async (id) => request(`/clinic/support/${id}`),
+  /** POST /clinic/support/:id/respond — append a reply to the thread. */
+  respond: async (id, message) =>
+    request(`/clinic/support/${id}/respond`, { method: 'POST', body: { message } }),
 };
 /**
  * Backend-signed direct upload to Cloudinary with a real progress bar.
@@ -124,7 +190,7 @@ export const doctorApi = {
  *    (file, api_key, timestamp, signature, folder) or the signature won't match.
  *
  * @param {File|Blob} file      the image to upload
- * @param {'logo'|'banner'|'doctor'} kind  asset kind (scopes the folder)
+ * @param {'logo'|'banner'|'doctor'|'ticket'} kind  asset kind (scopes the folder)
  * @param {(pct:number)=>void} [onProgress] 0..100 upload percentage
  * @returns {Promise<string>} the Cloudinary secure_url
  */

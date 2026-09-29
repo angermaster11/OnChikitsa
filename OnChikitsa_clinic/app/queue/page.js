@@ -1,35 +1,13 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { Poppins } from 'next/font/google';
 import {
-  Home, Wallet, User, Calendar, ChevronDown, Search,
+  Calendar, ChevronDown, Search,
   Check, X, SkipForward, MoreHorizontal, Clock,
 } from '../_components/icons';
+import BottomNav from '../_components/BottomNav';
 import { tapLight } from '../_lib/haptic';
 import styles from './queue.module.css';
-
-const poppins = Poppins({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
-  display: 'swap',
-  fallback: ['Segoe UI', 'system-ui', 'sans-serif'],
-});
-
-const CalPlus = (p) => (
-  <svg width={p.size || 24} height={p.size || 24} viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <rect x="3" y="4" width="18" height="18" rx="3" /><path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4" />
-  </svg>
-);
-// queue glyph — matches the dashboard / appointments tab
-const QueueIc = (p) => (
-  <svg width={p.size || 24} height={p.size || 24} viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <circle cx="7" cy="7" r="3" /><path d="M2 20v-1a5 5 0 0 1 10 0v1" /><path d="M15 6h6M15 11h6M15 16h4" />
-  </svg>
-);
 
 const INIT = [
   { id: 'q1', name: 'Priya Singh', age: 32, gender: 'Female', type: 'Follow-up Consultation', time: '09:30 AM', status: 'waiting' },
@@ -49,28 +27,6 @@ const INIT = [
 function initials(name) {
   const p = name.trim().split(/\s+/);
   return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase();
-}
-
-function TabBar({ active }) {
-  const router = useRouter();
-  const go = (r) => () => { tapLight(); router.push(r); };
-  const tabs = [
-    ['home', 'Home', Home, '/dashboard'],
-    ['appts', 'Appointments', CalPlus, '/appointments'],
-    ['queue', 'Queue', QueueIc, '/queue'],
-    ['wallet', 'Wallet', Wallet, '/earnings'],
-    ['profile', 'Profile', User, '/profile'],
-  ];
-  return (
-    <nav className={styles.tabbar}>
-      {tabs.map(([k, l, Ic, r]) => (
-        <button key={k} className={`${styles.tab} ${active === k ? styles.tabOn : ''}`}
-          onClick={active === k ? undefined : go(r)} aria-current={active === k ? 'page' : undefined}>
-          <span className={styles.tabIc}><Ic size={21} /></span>{l}
-        </button>
-      ))}
-    </nav>
-  );
 }
 
 export default function QueuePage() {
@@ -106,7 +62,7 @@ export default function QueuePage() {
   const posOf = (id) => items.filter((p) => p.status === 'waiting').findIndex((p) => p.id === id) + 1;
 
   return (
-    <main className={`${styles.root} ${poppins.className}`}>
+    <main className={styles.root}>
       <div className={styles.scroll}>
         <header className={styles.head}>
           <div>
@@ -202,7 +158,7 @@ export default function QueuePage() {
         </div>
       </div>
 
-      <TabBar active="queue" />
+      <BottomNav active="queue" />
     </main>
   );
 }

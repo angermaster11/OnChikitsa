@@ -121,3 +121,73 @@ export const supportApi = {
   /** GET /user/support — the caller's own previously-raised tickets. */
   listMine: () => request('/user/support'),
 };
+
+export const clinicApi = {
+  /**
+   * GET /user/clinics — the patient-facing clinic directory. Each item is a full
+   * clinic doc enriched by the backend with `doctorsCount`, `seatsToday` and a
+   * lowercase `slotStatus` ('active' | 'booked' | 'closed') for today. We pull a
+   * generous page and let the Explore screen filter/search client-side.
+   */
+  list: (params = {}) => {
+    const qs = new URLSearchParams();
+    if (params.search) qs.set('search', params.search);
+    if (params.specialty) qs.set('specialty', params.specialty);
+    if (params.city) qs.set('city', params.city);
+    qs.set('limit', String(params.limit || 100));
+    return request(`/user/clinics?${qs.toString()}`);
+  },
+  /** GET /user/clinics/:id — one clinic with its active doctors + today's summary. */
+  get: (id) => request(`/user/clinics/${id}`),
+  /**
+   * GET /user/clinics/:id/slots?date=YYYY-MM-DD — the slot-picker feed for a date.
+   * Returns `{ open, reason, slots:[{start,end,capacity,booked,available,past}],
+   * advanceBookingDays, sameDayBooking, ... }`.
+   */
+  slots: (id, date) => request(`/user/clinics/${id}/slots?date=${encodeURIComponent(date)}`),
+};
+
+export const bookingApi = {
+  /**
+   * POST /user/bookings — reserve one slot. Payload:
+   * `{ clinicId, date, slotStart, slotEnd, patient:{name,phone,age?,gender?}, reason? }`.
+   * Returns the created appointment (with its `tokenNo`).
+   */
+  create: (payload) => request('/user/bookings', { method: 'POST', body: payload }),
+  /** GET /user/bookings?scope= — the caller's own bookings (upcoming | past | all). */
+  listMine: (scope = 'all') => request(`/user/bookings?scope=${scope}&limit=100`),
+  /** POST /user/bookings/:id/cancel — cancel a still-booked appointment. */
+  cancel: (id) => request(`/user/bookings/${id}/cancel`, { method: 'POST' }),
+};
+
+export const paymentApi = {
+  /**
+   * POST /user/payments/order — Phase A of payment-first booking. Validates the
+   * slot, reserves it with a short-lived PENDING_PAYMENT hold, creates the Razorpay
+   * order, and returns the checkout params + full price breakdown. Payload matches
+   * bookingApi.create:
+   * `{ clinicId, date, slotStart, slotEnd, patient:{name,phone,age?,gender?}, reason? }`.
+   *
+   * Every payment is collected through Razorpay into the platform's account. Returns
+   * `{ appointmentId, paymentId, amountPaise, currency, breakdown, holdExpiresAt,
+   *    clinic:{id,name}, razorpay:{ keyId, orderId, amountPaise, currency } }`
+   *  → open Razorpay Checkout with `razorpay` (native RazorpayNative plugin on Android,
+   *    or checkout.js on web), then POST /verify the signed success and poll status(orderId).
+   */
+  createOrder: (payload) => request('/user/payments/order', { method: 'POST', body: payload }),
+  /**
+   * POST /user/payments/verify — confirm a checkout success handed back by the SDK.
+   * Body `{ razorpayOrderId, razorpayPaymentId, razorpaySignature }`; the backend
+   * checks `HMAC_SHA256(order_id|payment_id) === signature` before confirming the
+   * booking. Returns `{ status:'PAID', appointmentId }`. Idempotent with the webhook.
+   */
+  verifyPayment: (payload) => request('/user/payments/verify', { method: 'POST', body: payload }),
+  /**
+   * GET /user/payments/status/:orderId — Phase B poll while checkout runs / after it
+   * returns. Returns `{ orderId, status, razorpayStatus, appointmentId, appointment }`;
+   * `status` is CREATED | PAID | FAILED | REFUNDED, and once PAID the confirmed
+   * `appointment` (with its token) is included. This is the resilient backstop to the
+   * direct /verify call — the webhook may confirm the booking even if the client drops.
+   */
+  status: (orderId) => request(`/user/payments/status/${orderId}`),
+};

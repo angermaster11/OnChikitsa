@@ -6,6 +6,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
+// Screens where hardware-back should EXIT the app instead of navigating: the
+// authed home, and the unauth entry screens (there is nothing sensible behind
+// them — going "back" used to bounce through /dashboard and flicker).
+const ROOT_SCREENS = ['/dashboard', '/login', '/onboarding', '/'];
+// The five bottom-nav roots. Back on a non-home tab jumps to home.
 const TAB_ROOTS = ['/dashboard', '/appointments', '/queue', '/patients', '/more'];
 const HOME = '/dashboard';
 
@@ -32,14 +37,14 @@ export default function NativeShell() {
       try { ({ Capacitor: Cap } = await import('@capacitor/core')); } catch { return; }
       if (!Cap?.isNativePlatform?.()) return;
 
-      // Status bar — brand blue with light-mode styling. The app is light-only,
+      // Status bar — brand green with light-mode styling. The app is light-only,
       // so this no longer follows the OS color scheme.
       try {
         const { StatusBar, Style } = await import('@capacitor/status-bar');
         await StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});
         try {
           await StatusBar.setStyle({ style: Style.Light });
-          await StatusBar.setBackgroundColor({ color: '#1c74e0' });
+          await StatusBar.setBackgroundColor({ color: '#00cfba' });
         } catch {}
       } catch {}
 
@@ -53,8 +58,16 @@ export default function NativeShell() {
       try {
         const { App } = await import('@capacitor/app');
         const sub = await App.addListener('backButton', ({ canGoBack }) => {
+          // 1) An open bottom sheet / modal swallows back — close it, don't
+          //    navigate. Every modal in the app is the shared <Sheet> (its
+          //    scrim closes it on tap), so one selector covers them all.
+          const scrim = document.querySelector('.sheet-scrim');
+          if (scrim) { scrim.click(); return; }
+
           const path = pathRef.current;
-          if (path === HOME) {
+
+          // 2) Root screens → press back twice to leave the app.
+          if (ROOT_SCREENS.includes(path)) {
             const now = Date.now();
             if (now - lastBack.current < 2000) { App.exitApp(); return; }
             lastBack.current = now;
@@ -63,7 +76,12 @@ export default function NativeShell() {
             import('../_lib/haptic').then((h) => h.tapLight()).catch(() => {});
             return;
           }
+
+          // 3) A non-home tab root → go to home.
           if (TAB_ROOTS.includes(path)) { router.push(HOME); return; }
+
+          // 4) Everything else → normal back; fall back to home if the history
+          //    stack is empty (e.g. a deep-linked / reloaded screen).
           if (canGoBack) router.back(); else router.push(HOME);
         });
         if (cancelled) sub.remove(); else removeBack = () => sub.remove();

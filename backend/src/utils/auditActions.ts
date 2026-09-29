@@ -35,6 +35,13 @@ export const AUDIT_ACTIONS = {
   FAQ_UPDATED: 'FAQ_UPDATED',
   FAQ_DELETED: 'FAQ_DELETED',
 
+  SETTINGS_UPDATED: 'SETTINGS_UPDATED',
+  PAYMENT_REFUNDED: 'PAYMENT_REFUNDED',
+  // Admin clears a clinic's owed 90% share offline: a single transaction, or every
+  // pending transaction for the clinic at once ("settle all pending").
+  TRANSACTION_SETTLED: 'TRANSACTION_SETTLED',
+  CLINIC_SETTLED: 'CLINIC_SETTLED',
+
   PASSWORD_CHANGED: 'PASSWORD_CHANGED',
 } as const;
 

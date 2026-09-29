@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  MapPin, ChevronDown, Bell, Search, Heart, Star, Trophy, Home, Compass, Ticket, User,
+  MapPin, ChevronDown, Bell, Search, Heart, Home, Compass, Ticket, User,
   Grid, Stethoscope, Tooth, HeartPulse, Baby, Sparkles, Eye, Ear, Bone, Brain,
   Activity, Leaf, Flask, Pill, Syringe, Emergency, Building,
 } from '../_components/icons';
@@ -11,7 +11,12 @@ import { resolveRoute } from '../_lib/onboarding';
 import { flow } from '../_lib/flow';
 import { unreadCount } from '../_lib/notifications';
 import { getCurrentUser } from '../_lib/auth';
+import { clinicApi, ApiError } from '../_lib/api';
+import { mapClinicCard } from '../_lib/clinicMap';
 import styles from './dashboard.module.css';
+
+const GLYPHS = { building: Building, stethoscope: Stethoscope, tooth: Tooth, heart: HeartPulse, sparkles: Sparkles, brain: Brain, flask: Flask };
+const STATUS_LABEL = { active: 'Active', booked: 'Fully booked', closed: 'Closed' };
 
 const CATEGORIES = [
   { Icon: Grid, label: 'All' },
@@ -31,42 +36,31 @@ const CATEGORIES = [
   { Icon: Syringe, label: 'Vaccination' },
   { Icon: Emergency, label: 'Emergency' },
 ];
-
-const RECOMMENDED = [
-  { id: 'r1', name: 'CityCare Multispeciality', rate: '4.9', dist: '2.1 km', area: 'Sector 18, Noida', cat: 'Multispeciality', reviews: '1,240', badge: 'Best in Class', trophy: true, g: 'g1', Glyph: Building },
-  { id: 'r2', name: 'Dr. Aisha Rao', rate: '4.8', dist: '3.4 km', area: 'MG Road, Noida', cat: 'Cardiologist', reviews: '980', badge: 'Featured', g: 'g5', Glyph: HeartPulse },
-  { id: 'r3', name: 'Sunrise Family Clinic', rate: '4.7', dist: '1.6 km', area: 'Park Street', cat: 'Family Medicine', reviews: '640', badge: 'Top Rated', g: 'g3', Glyph: Stethoscope },
-];
-
-const FRESH = [
-  { id: 'n1', name: 'Aarogya Dental Studio', rate: '5.0', dist: '2.8 km', area: 'Sector 62, Noida', cat: 'Dental', reviews: '120', badge: 'New', g: 'g2', Glyph: Tooth },
-  { id: 'n2', name: 'SkinGlow Dermatology', rate: '4.9', dist: '4.0 km', area: 'Golf Course Rd', cat: 'Dermatology', reviews: '85', badge: 'Deals', g: 'g4', Glyph: Sparkles },
-  { id: 'n3', name: 'MindWell Clinic', rate: '4.8', dist: '3.2 km', area: 'Cyber Hub', cat: 'Psychiatry', reviews: '60', badge: 'New', g: 'g6', Glyph: Brain },
-];
-
-const NEARBY = [
-  { id: 'v1', name: 'Wellness Point Polyclinic', dist: '1.1 km', area: 'Sector 15, Noida', g: 'g6', Glyph: Building },
-  { id: 'v2', name: 'LifeLine Diagnostics', dist: '1.9 km', area: 'Atta Market, Noida', g: 'g3', Glyph: Flask },
-];
 export default function Dashboard() {
   const router = useRouter();
   const [offline, setOffline] = useState(false);
-  const [activeTab, setActiveTab] = useState('home');
   const [favs, setFavs] = useState({});
   const [locLabel, setLocLabel] = useState('Current location');
+  const [city, setCity] = useState('');
   const [unread, setUnread] = useState(0);
   const [checking, setChecking] = useState(true);
+  const [clinics, setClinics] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Reflect the location chosen on the picker (falls back to the generic label).
+  // Reflect the location + city chosen on the picker (falls back to the generic
+  // label; empty city → no filter). Re-read on refocus so a pick applies live.
   useEffect(() => {
-    const read = () => setLocLabel(flow.getLocation() || 'Current location');
+    const read = () => {
+      setLocLabel(flow.getLocation() || 'Current location');
+      try { setCity(flow.getCity()); } catch { setCity(''); }
+    };
     read();
     window.addEventListener('focus', read);
     return () => window.removeEventListener('focus', read);
   }, []);
 
-  // Keep the bell's unread dot honest — recompute on mount and whenever the user
-  // returns to the dashboard (e.g. after reading them on the Notifications screen).
+  // Keep the bell's unread dot honest — recompute on mount and on refocus.
   useEffect(() => {
     const read = () => { try { setUnread(unreadCount()); } catch { setUnread(0); } };
     read();
@@ -74,9 +68,7 @@ export default function Dashboard() {
     return () => window.removeEventListener('focus', read);
   }, []);
 
-  // Central onboarding guard — bounce anyone who shouldn't be here. A fast local
-  // auth check runs first so a logged-out user never sees the home screen (even
-  // for a frame) before being sent to welcome.
+  // Central onboarding guard (the clinic API needs a signed-in token).
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -93,6 +85,26 @@ export default function Dashboard() {
     return () => { cancelled = true; };
   }, [router]);
 
+  // Load the real clinic directory, filtered by the chosen city. Re-runs when the
+  // city changes (or is cleared via "All cities") so the list broadens live.
+  useEffect(() => {
+    if (checking) return;
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+    (async () => {
+      try {
+        const rows = await clinicApi.list(city ? { city } : {});
+        if (!cancelled) setClinics((rows || []).map(mapClinicCard));
+      } catch (err) {
+        if (!cancelled) setError(err instanceof ApiError ? err.message : 'Could not load clinics.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [checking, city]);
+
   useEffect(() => {
     const sync = () => setOffline(!navigator.onLine);
     sync();
@@ -105,31 +117,44 @@ export default function Dashboard() {
   }, []);
 
   const toggleFav = (id) => setFavs((f) => ({ ...f, [id]: !f[id] }));
+  const open = (id) => { flow.setClinicId(id); router.push('/clinic'); };
 
-  const Card = (v) => (
-    <div key={v.id} className={styles.card} role="button" tabIndex={0}>
-      <span className={`${styles.art} ${styles[v.g]}`}>
-        <v.Glyph size={54} className={styles.glyph} />
-        <span className={styles.badge}>{v.trophy && <Trophy size={13} />}{v.badge}</span>
-        <button
-          className={`${styles.fav} ${favs[v.id] ? styles.on : ''}`}
-          onClick={(e) => { e.stopPropagation(); toggleFav(v.id); }}
-          aria-label="Save"
-        >
-          <Heart size={19} fill={favs[v.id] ? 'currentColor' : 'none'} />
-        </button>
-      </span>
-      <div className={styles.cardBody}>
-        <div className={styles.cardRow}>
-          <h3 className={styles.cardName}>{v.name}</h3>
-          <span className={styles.rate}><Star size={13} /> {v.rate}</span>
+  const featured = clinics.slice(0, 6);
+  const more = clinics.slice(6);
+
+  // A real clinic → the tall rail card. No ratings/reviews (the backend has none);
+  // we show the honest facts instead: today's status, doctors, and seats.
+  const Card = (v) => {
+    const Glyph = GLYPHS[v.glyph] || Building;
+    return (
+      <div key={v.id} className={styles.card} role="button" tabIndex={0} onClick={() => open(v.id)}>
+        <span className={`${styles.art} ${styles[v.g]}`}>
+          <Glyph size={54} className={styles.glyph} />
+          <span className={styles.badge}>{STATUS_LABEL[v.status] || 'Closed'}</span>
+          <button
+            className={`${styles.fav} ${favs[v.id] ? styles.on : ''}`}
+            onClick={(e) => { e.stopPropagation(); toggleFav(v.id); }}
+            aria-label="Save"
+          >
+            <Heart size={19} fill={favs[v.id] ? 'currentColor' : 'none'} />
+          </button>
+        </span>
+        <div className={styles.cardBody}>
+          <div className={styles.cardRow}>
+            <h3 className={styles.cardName}>{v.name}</h3>
+          </div>
+          <p className={styles.sub}>{v.cat} · {v.area}</p>
+          <p className={styles.sub}>
+            {v.doctorsCount} doctor{v.doctorsCount === 1 ? '' : 's'}
+            {v.status === 'active' ? ` · ${v.seats} seat${v.seats === 1 ? '' : 's'} today` : ''}
+          </p>
         </div>
-        <p className={styles.sub}>{v.dist} · {v.area}</p>
-        <p className={styles.sub}>{v.cat} · {v.reviews} reviews</p>
       </div>
-    </div>
-  );
+    );
+  };
+
   if (checking) return <main className={styles.screen} aria-busy="true" />;
+
   return (
     <main className={styles.screen}>
       <div className={styles.top}>
@@ -147,14 +172,14 @@ export default function Dashboard() {
       <div className={styles.searchWrap}>
         <div className={styles.search} role="search">
           <Search size={20} className={styles.mag} />
-          <input placeholder="Browse clinics & treatments" aria-label="Search" />
-          <button className={styles.searchBtn}>Search</button>
+          <input placeholder="Browse clinics & treatments" aria-label="Search" onFocus={() => router.push('/explore')} readOnly />
+          <button className={styles.searchBtn} onClick={() => router.push('/explore')}>Search</button>
         </div>
       </div>
 
       <div className={styles.cats}>
         {CATEGORIES.map(({ Icon, label }, i) => (
-          <button key={label} className={`${styles.cat} ${i === 0 ? styles.on : ''}`}>
+          <button key={label} className={`${styles.cat} ${i === 0 ? styles.on : ''}`} onClick={() => router.push('/explore')}>
             <span className={styles.tile}><Icon size={24} /></span>
             <span className={styles.catLabel}>{label}</span>
           </button>
@@ -163,44 +188,50 @@ export default function Dashboard() {
 
       <section className={styles.sec}>
         <div className={styles.secHead}>
-          <h2 className={styles.secTitle}>Recommended</h2>
-          <button className={styles.seeAll}>See all</button>
+          <h2 className={styles.secTitle}>Clinics for you</h2>
+          <button className={styles.seeAll} onClick={() => router.push('/explore')}>See all</button>
         </div>
-        <div className={styles.rail}>{RECOMMENDED.map(Card)}</div>
+        {loading ? (
+          <p className={styles.sub} style={{ padding: '0 20px' }}>Loading clinics…</p>
+        ) : error ? (
+          <p className={styles.sub} style={{ padding: '0 20px', color: '#c0392b' }}>{error}</p>
+        ) : featured.length === 0 ? (
+          <p className={styles.sub} style={{ padding: '0 20px' }}>No clinics available yet.</p>
+        ) : (
+          <div className={styles.rail}>{featured.map(Card)}</div>
+        )}
       </section>
 
-      <section className={styles.sec}>
-        <div className={styles.secHead}>
-          <h2 className={styles.secTitle}>New on OnChikitsa</h2>
-          <button className={styles.seeAll}>See all</button>
-        </div>
-        <div className={styles.rail}>{FRESH.map(Card)}</div>
-      </section>
-      <section className={styles.sec}>
-        <div className={styles.secHead}>
-          <h2 className={styles.secTitle}>Nearby venues</h2>
-          <button className={styles.seeAll}>See all</button>
-        </div>
-        {NEARBY.map((v) => (
-          <div key={v.id} className={styles.wide} role="button" tabIndex={0}>
-            <span className={`${styles.wideArt} ${styles[v.g]}`}><v.Glyph size={30} /></span>
-            <div className={styles.wideBody}>
-              <h3 className={styles.wideName}>{v.name}</h3>
-              <p className={styles.wideSub}>{v.dist} · {v.area}</p>
-            </div>
-            <button
-              className={`${styles.wideFav} ${favs[v.id] ? styles.on : ''}`}
-              onClick={(e) => { e.stopPropagation(); toggleFav(v.id); }}
-              aria-label="Save"
-            >
-              <Heart size={20} fill={favs[v.id] ? 'currentColor' : 'none'} />
-            </button>
+      {more.length > 0 && (
+        <section className={styles.sec}>
+          <div className={styles.secHead}>
+            <h2 className={styles.secTitle}>More clinics</h2>
+            <button className={styles.seeAll} onClick={() => router.push('/explore')}>See all</button>
           </div>
-        ))}
-      </section>
+          {more.map((v) => {
+            const Glyph = GLYPHS[v.glyph] || Building;
+            return (
+              <div key={v.id} className={styles.wide} role="button" tabIndex={0} onClick={() => open(v.id)}>
+                <span className={`${styles.wideArt} ${styles[v.g]}`}><Glyph size={30} /></span>
+                <div className={styles.wideBody}>
+                  <h3 className={styles.wideName}>{v.name}</h3>
+                  <p className={styles.wideSub}>{v.cat} · {v.area}</p>
+                </div>
+                <button
+                  className={`${styles.wideFav} ${favs[v.id] ? styles.on : ''}`}
+                  onClick={(e) => { e.stopPropagation(); toggleFav(v.id); }}
+                  aria-label="Save"
+                >
+                  <Heart size={20} fill={favs[v.id] ? 'currentColor' : 'none'} />
+                </button>
+              </div>
+            );
+          })}
+        </section>
+      )}
 
       <nav className={styles.tabbar} aria-label="Primary">
-        <button className={`${styles.tab} ${activeTab === 'home' ? styles.active : ''}`} onClick={() => setActiveTab('home')}>
+        <button className={`${styles.tab} ${styles.active}`}>
           <Home size={22} /> Home
         </button>
         <button className={styles.tab} onClick={() => router.push('/explore')}>
@@ -209,7 +240,7 @@ export default function Dashboard() {
         <button className={styles.tab} onClick={() => router.push('/bookings')}>
           <Ticket size={22} /> Bookings
         </button>
-        <button className={`${styles.tab} ${activeTab === 'profile' ? styles.active : ''}`} onClick={() => router.push('/profile')}>
+        <button className={styles.tab} onClick={() => router.push('/profile')}>
           <User size={22} /> Profile
         </button>
       </nav>

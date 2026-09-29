@@ -30,7 +30,68 @@ export async function connectDatabase(): Promise<typeof mongoose> {
 
   connected = true;
   logger.info('MongoDB connected');
+
+  // Best-effort: heal a legacy index shape that blocks bookings. Never fatal.
+  try {
+    await reconcilePaymentIndexes();
+  } catch (err) {
+    logger.error({ err }, 'Payment index reconciliation failed');
+  }
+
   return mongoose;
+}
+
+/**
+ * Self-heal a legacy payment index shape. An earlier build created a NON-partial
+ * unique index on the order-id field (default name `<field>_1`), but a booking that
+ * never reaches checkout leaves that field null — so the second such row collides on
+ * null → E11000 "A record with these details already exists", and it fires regardless
+ * of date/slot (which is why booking failed even on different days). Mongoose never
+ * drops an index whose name already exists, so it cannot replace the stale one on its
+ * own. Here we (1) drop any stale NON-partial unique index on `razorpayOrderId`,
+ * (2) drop any leftover index on the legacy `payuTxnId` field (that field no longer
+ * exists), and (3) (re)create the intended partial-unique index on `razorpayOrderId`
+ * — the one that only indexes rows actually carrying a string id, so nulls never
+ * clash. Idempotent: once the first boot fixes it, every later boot is a no-op.
+ */
+async function reconcilePaymentIndexes(): Promise<void> {
+  const db = mongoose.connection.db;
+  if (!db) return;
+  // The transactions live in the `transactions` collection (see payment.model.ts).
+  const col = db.collection('transactions');
+
+  let existing: Array<{ name?: string; key?: Record<string, unknown>; unique?: boolean; partialFilterExpression?: unknown }>;
+  try {
+    existing = await col.indexes();
+  } catch {
+    return; // collection not created yet on a fresh DB — autoIndex builds it correctly
+  }
+
+  const isSingleField = (field: string, i: { key?: Record<string, unknown> }): boolean =>
+    Boolean(i.key && Object.keys(i.key).length === 1 && i.key[field] === 1);
+
+  // (1) The null-collision bug: a unique-but-NOT-partial index on razorpayOrderId.
+  const staleOrderIdx = existing.find(
+    (i) => i.unique === true && !i.partialFilterExpression && isSingleField('razorpayOrderId', i),
+  );
+  if (staleOrderIdx?.name) {
+    await col.dropIndex(staleOrderIdx.name).catch(() => undefined);
+    logger.warn({ index: staleOrderIdx.name }, 'Dropped stale non-partial unique razorpayOrderId index');
+  }
+
+  // (2) Legacy `payuTxnId` field is gone — remove its index if a pre-migration DB has one.
+  const legacyPayuIdx = existing.find((i) => isSingleField('payuTxnId', i));
+  if (legacyPayuIdx?.name) {
+    await col.dropIndex(legacyPayuIdx.name).catch(() => undefined);
+    logger.warn({ index: legacyPayuIdx.name }, 'Dropped legacy payuTxnId index');
+  }
+
+  // (3) Ensure the intended partial-unique index exists (also covers production, where
+  //     autoIndex is off). No-op if it is already present.
+  await col.createIndex(
+    { razorpayOrderId: 1 },
+    { unique: true, partialFilterExpression: { razorpayOrderId: { $type: 'string' } } },
+  );
 }
 
 export async function disconnectDatabase(): Promise<void> {

@@ -9,6 +9,8 @@ import { idParamSchema } from '../../utils/validators';
 import { clinicController } from './clinic.controller';
 import {
   listClinicsQuerySchema,
+  listPatientClinicsQuerySchema,
+  slotsQuerySchema,
   adminUpdateClinicSchema,
   banSchema,
   registerClinicSchema,
@@ -70,4 +72,19 @@ clinicAppRoutes.patch(
   firebaseAuth('CLINIC'),
   validate({ body: updateClinicProfileSchema }),
   clinicController.updateMe,
+);
+
+/** Patient-facing clinic discovery — mounted at /api/v1/user/clinics (Firebase USER). */
+export const userClinicRoutes = Router();
+userClinicRoutes.use(firebaseAuth('USER'));
+userClinicRoutes.get(
+  '/',
+  validate({ query: listPatientClinicsQuerySchema }),
+  clinicController.listForPatient,
+);
+userClinicRoutes.get('/:id', validate({ params: idParamSchema }), clinicController.getForPatient);
+userClinicRoutes.get(
+  '/:id/slots',
+  validate({ params: idParamSchema, query: slotsQuerySchema }),
+  clinicController.slots,
 );

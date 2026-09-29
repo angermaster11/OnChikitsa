@@ -2,31 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Poppins } from 'next/font/google';
 import {
-  ArrowLeft, ChevronRight, ChevronDown, Bell, Clock, Stethoscope,
-  Image, ClipboardList, UserPlus, Users, Calendar, Settings, Check,
+  ArrowLeft, ChevronRight, ChevronDown, Stethoscope,
+  ClipboardList, UserPlus, Users, Calendar, Check, Store, CreditCard,
 } from '../_components/icons';
 import { tapLight, notify } from '../_lib/haptic';
 import { clinicApi } from '../_lib/api';
 import styles from './settings.module.css';
-
-const poppins = Poppins({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
-  display: 'swap',
-  fallback: ['Segoe UI', 'system-ui', 'sans-serif'],
-});
-
-// storefront glyph the shared set doesn't carry
-const Store = (p) => (
-  <svg width={p.size || 22} height={p.size || 22} viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M3 9l1.5-4.5A2 2 0 0 1 6.4 3h11.2a2 2 0 0 1 1.9 1.5L21 9" />
-    <path d="M3 9v1a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0V9" />
-    <path d="M4 13v6a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-6" /><path d="M9 20v-5h6v5" />
-  </svg>
-);
 
 // UI status labels ↔ backend CLINIC_STATUS enum (ACTIVE / CLOSED / BOOKING_FULL).
 const STATUS = {
@@ -40,10 +22,8 @@ const GROUPS = [
   {
     h: 'Clinic Information', s: 'Update your clinic details and basic information',
     rows: [
-      { Ico: ClipboardList, t: 'Clinic Details', d: 'Name, address & contact information', r: '/profile' },
-      { Ico: Clock, t: 'Working Hours', d: 'Set your clinic timings', r: '/schedule' },
-      { Ico: Stethoscope, t: 'Services', d: 'Manage consultation types & charges', r: '/services' },
-      { Ico: Image, t: 'Photos', d: 'Add clinic photos & gallery', r: '/setup/photos' },
+      { Ico: ClipboardList, t: 'Clinic Details', d: 'Name, address, photos & contact info', r: '/profile' },
+      { Ico: Stethoscope, t: 'Services', d: 'Specialities your clinic offers', r: '/services' },
     ],
   },
   {
@@ -51,16 +31,14 @@ const GROUPS = [
     rows: [
       { Ico: UserPlus, t: 'Add Doctors', d: 'Add doctors to your clinic', r: '/doctors/add' },
       { Ico: Users, t: 'Manage Staff', d: 'Receptionists & assistants', r: '/doctors' },
-      { Ico: Calendar, t: 'Consultation Availability', d: 'Set doctor availability & slots', r: '/schedule/slots' },
+      { Ico: Calendar, t: 'Slot Configuration', d: 'Set consultation slots & booking rules', r: '/schedule/slots' },
     ],
   },
   {
-    h: 'Notifications', s: 'Choose what alerts you and your patients receive',
-    rows: [{ Ico: Bell, t: 'Notification Settings', d: 'Manage alerts & reminders', r: '/setup/notifications' }],
-  },
-  {
-    h: 'Other Settings', s: 'App preferences and general options',
-    rows: [{ Ico: Settings, t: 'App Preferences', d: 'Language, theme & more', r: '/more' }],
+    h: 'Payments', s: 'Track what you earn',
+    rows: [
+      { Ico: CreditCard, t: 'Earnings & Settlements', d: 'Your 90% share and what the platform has settled', r: '/earnings' },
+    ],
   },
 ];
 
@@ -70,6 +48,7 @@ export default function ClinicSettings() {
   const [status, setStatus] = useState('Active');
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [statusErr, setStatusErr] = useState('');
   const meta = STATUS[status];
 
   // Load the clinic's real status once.
@@ -91,18 +70,20 @@ export default function ClinicSettings() {
     const prev = status;
     setStatus(next); // optimistic — revert if the PATCH fails
     setSaving(true);
+    setStatusErr('');
     try {
       await clinicApi.updateMe({ status: STATUS[next].server });
       notify('SUCCESS');
     } catch {
       setStatus(prev);
+      setStatusErr('Couldn’t update clinic status. Check your connection and try again.');
       notify('ERROR');
     } finally {
       setSaving(false);
     }
   }
   return (
-    <main className={`${styles.root} ${poppins.className}`}>
+    <main className={styles.root}>
       <header className={styles.top}>
         <button className={styles.back} onClick={() => { tapLight(); router.back(); }} aria-label="Back">
           <ArrowLeft size={22} />
@@ -138,6 +119,8 @@ export default function ClinicSettings() {
             )}
           </div>
         </section>
+
+        {statusErr && <p className={styles.statusErr} role="alert">{statusErr}</p>}
 
         {GROUPS.map((g) => (
           <section key={g.h} className={styles.group}>

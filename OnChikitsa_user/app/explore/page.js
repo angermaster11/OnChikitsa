@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Search, Star, Home, Compass, Ticket, User,
+  Search, Home, Compass, Ticket, User, AlertCircle,
   Building, Stethoscope, Tooth, HeartPulse, Sparkles, Brain, Flask,
 } from '../_components/icons';
 import { resolveRoute } from '../_lib/onboarding';
 import { getCurrentUser } from '../_lib/auth';
 import { flow } from '../_lib/flow';
-import { CLINICS } from '../_lib/clinics';
+import { clinicApi, ApiError } from '../_lib/api';
+import { mapClinicCard } from '../_lib/clinicMap';
 import styles from './explore.module.css';
 
 const GLYPHS = { building: Building, stethoscope: Stethoscope, tooth: Tooth, heart: HeartPulse, sparkles: Sparkles, brain: Brain, flask: Flask };
@@ -22,8 +23,21 @@ export default function Explore() {
   const [checking, setChecking] = useState(true);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
+  const [clinics, setClinics] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  // City chosen on the location picker → drives the backend `?city=` filter.
+  const [city, setCity] = useState('');
 
-  // Same fast auth gate + onboarding guard as the dashboard.
+  // Reflect the picked city on mount and whenever we return to this screen.
+  useEffect(() => {
+    const read = () => { try { setCity(flow.getCity()); } catch { setCity(''); } };
+    read();
+    window.addEventListener('focus', read);
+    return () => window.removeEventListener('focus', read);
+  }, []);
+
+  // Fast auth gate + onboarding guard (the clinic API needs a signed-in token).
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -39,8 +53,29 @@ export default function Explore() {
     })();
     return () => { cancelled = true; };
   }, [router]);
+
+  // Load the real clinic directory, filtered by the chosen city. Re-runs when the
+  // city changes (or is cleared via "All cities") so the list broadens live.
+  useEffect(() => {
+    if (checking) return;
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+    (async () => {
+      try {
+        const rows = await clinicApi.list(city ? { city } : {});
+        if (!cancelled) setClinics((rows || []).map(mapClinicCard));
+      } catch (err) {
+        if (!cancelled) setError(err instanceof ApiError ? err.message : 'Could not load clinics.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [checking, city]);
+
   const q = query.trim().toLowerCase();
-  const list = CLINICS.filter((c) => {
+  const list = clinics.filter((c) => {
     if (filter !== 'all' && c.status !== filter) return false;
     if (!q) return true;
     return `${c.name} ${c.cat} ${c.area}`.toLowerCase().includes(q);
@@ -72,35 +107,49 @@ export default function Explore() {
         ))}
       </div>
 
-      <p className={styles.count}>{list.length} clinic{list.length === 1 ? '' : 's'}</p>
-
-      {list.length === 0 ? (
-        <p className={styles.empty}>No clinics found. Try a different search.</p>
-      ) : (
-        <div className={styles.list}>
-          {list.map((c) => {
-            const Glyph = GLYPHS[c.glyph] || Building;
-            return (
-              <button key={c.id} className={styles.item} onClick={() => open(c.id)}>
-                <div className={`${styles.logo} ${styles[c.g]}`}>
-                  <Glyph size={26} />
-                </div>
-                <div className={styles.body}>
-                  <p className={styles.name}>{c.name}</p>
-                  <p className={styles.meta}>{c.cat} · {c.area}</p>
-                  <div className={styles.metaRow}>
-                    <span className={styles.rate}><Star size={13} /> {c.rate}</span>
-                    <span className={styles.dot}>•</span>
-                    <span>{c.dist}</span>
-                  </div>
-                </div>
-                <span className={`${styles.badge} ${styles[STATUS_CLASS[c.status]]}`}>
-                  {STATUS_LABEL[c.status]}
-                </span>
-              </button>
-            );
-          })}
+      {loading ? (
+        <p className={styles.count}>Loading clinics…</p>
+      ) : error ? (
+        <div className={styles.stateBox}>
+          <AlertCircle size={26} />
+          <p>{error}</p>
         </div>
+      ) : (
+        <>
+          <p className={styles.count}>{list.length} clinic{list.length === 1 ? '' : 's'}</p>
+          {list.length === 0 ? (
+            <p className={styles.empty}>No clinics found. Try a different search.</p>
+          ) : (
+            <div className={styles.list}>
+              {list.map((c) => {
+                const Glyph = GLYPHS[c.glyph] || Building;
+                return (
+                  <button key={c.id} className={styles.item} onClick={() => open(c.id)}>
+                    <div className={`${styles.logo} ${styles[c.g]}`}>
+                      <Glyph size={26} />
+                    </div>
+                    <div className={styles.body}>
+                      <p className={styles.name}>{c.name}</p>
+                      <p className={styles.meta}>{c.cat} · {c.area}</p>
+                      <div className={styles.metaRow}>
+                        <span className={styles.rate}><Stethoscope size={13} /> {c.doctorsCount} doctor{c.doctorsCount === 1 ? '' : 's'}</span>
+                        {c.status === 'active' && (
+                          <>
+                            <span className={styles.dot}>•</span>
+                            <span>{c.seats} seat{c.seats === 1 ? '' : 's'} today</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <span className={`${styles.badge} ${styles[STATUS_CLASS[c.status]]}`}>
+                      {STATUS_LABEL[c.status]}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
 
       <nav className={styles.tabbar} aria-label="Primary">

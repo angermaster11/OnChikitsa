@@ -26,6 +26,11 @@ export function createApp(): Application {
       credentials: true,
     }),
   );
+  // The Razorpay webhook is verified by an HMAC over the EXACT raw request bytes, so
+  // it must NOT be JSON-parsed. Capture it as a Buffer on its own path BEFORE the
+  // global JSON parser (Express matches this narrower mount first, and its `_body`
+  // flag makes the JSON/urlencoded parsers skip an already-read body).
+  app.use('/api/v1/payments/razorpay/webhook', express.raw({ type: '*/*', limit: env.BODY_LIMIT }));
   app.use(express.json({ limit: env.BODY_LIMIT }));
   app.use(express.urlencoded({ extended: true, limit: env.BODY_LIMIT }));
   app.use(requestLogger);

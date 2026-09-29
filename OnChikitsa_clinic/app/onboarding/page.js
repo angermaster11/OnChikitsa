@@ -2,18 +2,9 @@
 
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Poppins } from 'next/font/google';
 import { flow } from '../_lib/flow';
 import { tapLight } from '../_lib/haptic';
 import styles from './onboarding.module.css';
-
-// Same wordmark family as the splash so onboarding reads as one product.
-const poppins = Poppins({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  display: 'swap',
-  fallback: ['Segoe UI', 'system-ui', 'sans-serif'],
-});
 
 const SLIDES = [
   {
@@ -54,7 +45,7 @@ export default function Onboarding() {
   const s = SLIDES[i];
   return (
     <main
-      className={`${styles.root} ${poppins.className}`}
+      className={styles.root}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >

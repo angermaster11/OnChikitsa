@@ -1,10 +1,12 @@
 import { Types, type FilterQuery } from 'mongoose';
 import { SupportTicket, type SupportTicketDoc } from './supportTicket.model';
-import type { TicketStatus, TicketPriority, RaisedByType } from './supportTicket.model';
+import type { TicketStatus, TicketPriority, TicketCategory, RaisedByType } from './supportTicket.model';
 
 export interface SupportTicketListFilters {
   status?: TicketStatus;
   priority?: TicketPriority;
+  raisedByType?: RaisedByType;
+  category?: TicketCategory;
   search?: string;
 }
 
@@ -18,6 +20,8 @@ export const supportRepository = {
     const query: FilterQuery<SupportTicketDoc> = {};
     if (filters.status) query.status = filters.status;
     if (filters.priority) query.priority = filters.priority;
+    if (filters.raisedByType) query.raisedByType = filters.raisedByType;
+    if (filters.category) query.category = filters.category;
     if (filters.search) {
       const rx = new RegExp(escapeRegex(filters.search.trim()), 'i');
       query.$or = [{ subject: rx }, { message: rx }, { raisedByName: rx }];

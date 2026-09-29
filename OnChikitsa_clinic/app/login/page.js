@@ -2,21 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Poppins } from 'next/font/google';
 import { ChevronDown } from '../_components/icons';
 import { flow } from '../_lib/flow';
 import { sendOtp } from '../_lib/auth';
 import { resolveRoute } from '../_lib/onboarding';
 import { tapLight } from '../_lib/haptic';
 import styles from './login.module.css';
-
-// Same family as the splash / onboarding so the whole entry flow reads as one.
-const poppins = Poppins({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  display: 'swap',
-  fallback: ['Segoe UI', 'system-ui', 'sans-serif'],
-});
 
 const COUNTRIES = [
   { dial: '+91', flag: '🇮🇳', len: 10 },
@@ -65,7 +56,7 @@ export default function Login() {
   }
 
   return (
-    <main className={`${styles.root} ${poppins.className}`}>
+    <main className={styles.root}>
       <h1 className={styles.title}>Welcome back</h1>
       <p className={styles.sub}>Log in to view and manage your appointments</p>
 
@@ -93,7 +84,7 @@ export default function Login() {
         <span className={styles.msg}>{showError ? `Enter a valid ${country.len}-digit number` : ''}</span>
 
         {err ? (
-          <p role="alert" style={{ margin: '2px 2px 10px', fontSize: 13.5, fontWeight: 500, color: '#e5484d', lineHeight: 1.5 }}>
+          <p role="alert" style={{ margin: '2px 2px 10px', fontSize: 13.5, fontWeight: 500, color: 'var(--danger)', lineHeight: 1.5 }}>
             {err}
           </p>
         ) : null}

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState } from 'react';
+import Link from 'next/link';
 import { api, ApiError, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { usePaginatedList, useDebouncedValue } from '@/lib/useList';
@@ -11,10 +12,10 @@ import { Select, Textarea, Field } from '@/components/Input';
 import { DataTable, type Column } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
 import { StatusBadge } from '@/components/Badge';
-import { Alert, Spinner } from '@/components/Feedback';
+import { Alert } from '@/components/Feedback';
 import { Button } from '@/components/Button';
 import { Modal, ConfirmFooter } from '@/components/Modal';
-import { formatDate, formatDateTime, orDash } from '@/lib/format';
+import { formatDate, orDash } from '@/lib/format';
 
 const LIMIT = 20;
 type ActionType = 'ban' | 'unban' | 'delete' | 'status';
@@ -39,7 +40,6 @@ export default function ClinicsPage() {
   const [nextStatus, setNextStatus] = useState<ClinicStatus>('ACTIVE');
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [detail, setDetail] = useState<Clinic | null>(null);
 
   function openAction(type: ActionType, clinic: Clinic) {
     setAction({ type, clinic });
@@ -76,9 +76,8 @@ export default function ClinicsPage() {
       key: 'name',
       header: 'Clinic',
       render: (c) => (
-        <button
-          type="button"
-          onClick={() => setDetail(c)}
+        <Link
+          href={`/clinics/${c._id}`}
           className="group flex items-center gap-3 text-left"
           title="View clinic details"
         >
@@ -94,7 +93,7 @@ export default function ClinicsPage() {
             <span className="block font-medium text-slate-900 group-hover:text-brand-700 group-hover:underline">{c.name}</span>
             <span className="block text-xs text-slate-500">{orDash(c.email)}</span>
           </span>
-        </button>
+        </Link>
       ),
     },
     { key: 'phone', header: 'Phone', render: (c) => <span className="tabular-nums">{c.phone1}</span> },

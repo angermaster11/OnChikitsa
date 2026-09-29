@@ -1,6 +1,6 @@
-/* Notifications permission screen — shown once, right after the clinic
-   register wizard. Teal (#00cfba) + Poppins, matching the whole entry flow.
-   Self-contained CSS Module; light-only; touches no shared globals. */
+/* Notifications permission screen — shown once, right after the clinic register
+   wizard. Green brand accent via the global design tokens, matching the whole
+   entry flow. Light-only. */
 
 .root {
   min-height: 100dvh;
@@ -57,7 +57,7 @@
   width: 100%;
   border: 0;
   border-radius: 16px;
-  background: #00cfba;
+  background: var(--primary);
   color: #fff;
   font-family: inherit;
   font-size: 16.5px;

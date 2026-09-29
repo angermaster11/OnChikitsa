@@ -27,6 +27,7 @@ const PERMISSION_GROUPS: Array<{ label: string; perms: Permission[] }> = [
   { label: 'Doctors', perms: ['DOCTOR_VIEW', 'DOCTOR_CREATE', 'DOCTOR_UPDATE', 'DOCTOR_DELETE'] },
   { label: 'Admins', perms: ['ADMIN_VIEW', 'ADMIN_CREATE', 'ADMIN_UPDATE', 'ADMIN_DISABLE'] },
   { label: 'Support', perms: ['SUPPORT_VIEW', 'SUPPORT_CREATE', 'SUPPORT_UPDATE', 'SUPPORT_DISABLE'] },
+  { label: 'Payments & Billing', perms: ['SETTINGS_VIEW', 'SETTINGS_UPDATE', 'PAYMENT_VIEW', 'PAYMENT_REFUND'] },
   { label: 'Platform', perms: ['AUDIT_LOG_VIEW', 'DASHBOARD_VIEW'] },
 ];
 

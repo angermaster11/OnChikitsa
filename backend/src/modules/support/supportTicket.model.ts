@@ -28,6 +28,15 @@ export const RAISED_BY_TYPE = {
 } as const;
 export type RaisedByType = (typeof RAISED_BY_TYPE)[keyof typeof RAISED_BY_TYPE];
 
+/** Optional triage bucket chosen by the app account when opening a ticket. */
+export const TICKET_CATEGORY = {
+  PAYMENTS: 'PAYMENTS',
+  BOOKINGS: 'BOOKINGS',
+  TECHNICAL: 'TECHNICAL',
+  OTHER: 'OTHER',
+} as const;
+export type TicketCategory = (typeof TICKET_CATEGORY)[keyof typeof TICKET_CATEGORY];
+
 /** One reply on a ticket. Author is captured at write time (id, name, role). */
 export interface TicketResponse {
   authorId: Types.ObjectId;
@@ -42,6 +51,8 @@ export interface SupportTicketDoc extends Document<Types.ObjectId> {
   message: string;
   status: TicketStatus;
   priority: TicketPriority;
+  category?: TicketCategory;
+  attachments: string[];
   raisedByType: RaisedByType;
   raisedById: Types.ObjectId;
   raisedByName?: string;
@@ -78,6 +89,8 @@ const supportTicketSchema = new Schema<SupportTicketDoc>(
       default: TICKET_PRIORITY.MEDIUM,
       required: true,
     },
+    category: { type: String, enum: Object.values(TICKET_CATEGORY) },
+    attachments: { type: [String], default: [] },
     raisedByType: { type: String, enum: Object.values(RAISED_BY_TYPE), required: true },
     raisedById: { type: Schema.Types.ObjectId, required: true },
     raisedByName: { type: String, trim: true },

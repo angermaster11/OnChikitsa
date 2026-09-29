@@ -2,20 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Poppins } from 'next/font/google';
 import { ArrowLeft } from '../_components/icons';
 import { flow } from '../_lib/flow';
 import { confirmOtp, sendOtp } from '../_lib/auth';
 import { resolveRoute } from '../_lib/onboarding';
 import { tapLight, notify } from '../_lib/haptic';
 import styles from './verify.module.css';
-
-const poppins = Poppins({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  display: 'swap',
-  fallback: ['Segoe UI', 'system-ui', 'sans-serif'],
-});
 
 const LEN = 6;
 
@@ -83,7 +75,7 @@ export default function Verify() {
   }
 
   return (
-    <main className={`${styles.root} ${poppins.className}`}>
+    <main className={styles.root}>
       <button className={styles.back} aria-label="Go back" onClick={() => { tapLight(); router.back(); }}>
         <ArrowLeft size={22} />
       </button>
@@ -108,7 +100,7 @@ export default function Verify() {
           {error
             ? (errMsg || 'Incorrect code. Please try again.')
             : secs > 0
-              ? <>Didn&apos;t get the code? Resend in <b style={{ color: '#1a1d29' }}>0:{String(secs).padStart(2, '0')}</b></>
+              ? <>Didn&apos;t get the code? Resend in <b style={{ color: 'var(--fg)' }}>0:{String(secs).padStart(2, '0')}</b></>
               : <>Didn&apos;t get the code?{' '}
                   <button type="button" onClick={resend} disabled={resending}>
                     {resending ? 'Resending…' : 'Resend code'}

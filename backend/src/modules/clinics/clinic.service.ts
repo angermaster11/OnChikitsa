@@ -8,9 +8,12 @@ import { buildPaginationMeta, type PaginationMeta } from '../../utils/response';
 import { runInTransaction } from '../../utils/transaction';
 import { revokeFirebaseUser } from '../../config/firebase';
 import { auditService } from '../audit/audit.service';
-import { clinicRepository, type ClinicListFilters } from './clinic.repository';
+import { clinicRepository, type ClinicListFilters, type PatientClinicFilters } from './clinic.repository';
 import { type ClinicDoc } from './clinic.model';
-import { Doctor } from '../doctors/doctor.model';
+import { Doctor, type DoctorDoc } from '../doctors/doctor.model';
+import { appointmentRepository } from '../appointments/appointment.repository';
+import { appointmentService, type DayAvailability } from '../appointments/appointment.service';
+import { todayStr } from '../appointments/slots';
 import type { AuthActor } from '../../types/auth';
 import type { AdminUpdateClinicBody, RegisterClinicBody } from './clinic.validation';
 
@@ -21,6 +24,25 @@ interface Ctx {
 
 /** A listed clinic enriched with a live count of its non-deleted doctors. */
 export type ClinicWithDoctorsCount = ClinicDoc & { doctorsCount: number };
+
+/** How a clinic reads to a patient right now: open with seats, full, or closed. */
+export type PatientSlotStatus = 'active' | 'booked' | 'closed';
+
+/** A patient-list clinic: doctor count + today's live availability. */
+export type ClinicForPatient = ClinicDoc & {
+  doctorsCount: number;
+  openToday: boolean;
+  seatsToday: number;
+  slotStatus: PatientSlotStatus;
+};
+
+/** Clinic detail for the patient app: the clinic, its active doctors, today. */
+export interface ClinicDetailForPatient {
+  clinic: ClinicDoc;
+  doctors: DoctorDoc[];
+  doctorsCount: number;
+  today: { date: string; open: boolean; seats: number; slotStatus: PatientSlotStatus };
+}
 
 export const clinicService = {
   async list(
@@ -72,8 +94,14 @@ export const clinicService = {
     if (data.location !== undefined) {
       clinic.location = data.location ? { ...data.location, updatedAt: new Date() } : null;
     }
+    if (data.slotConfiguration !== undefined) clinic.slotConfiguration = data.slotConfiguration;
+    if (data.weeklyHours !== undefined) clinic.weeklyHours = data.weeklyHours;
+    if (data.holidays !== undefined) clinic.holidays = data.holidays;
     if (data.consultationFee !== undefined) clinic.consultationFee = data.consultationFee;
     if (data.averageConsultationTime !== undefined) clinic.averageConsultationTime = data.averageConsultationTime;
+    // Per-clinic commission override (admin-only). null clears it → falls back to
+    // the global defaultCommissionPercent at quote time.
+    if (data.commissionPercent !== undefined) clinic.commissionPercent = data.commissionPercent;
     if (data.status !== undefined) clinic.status = data.status;
     await clinic.save();
 
@@ -208,6 +236,9 @@ export const clinicService = {
       specialties: data.specialties,
       address: data.address,
       location: data.location ? { ...data.location, updatedAt: new Date() } : undefined,
+      slotConfiguration: data.slotConfiguration,
+      weeklyHours: data.weeklyHours,
+      holidays: data.holidays,
       consultationFee: data.consultationFee,
       averageConsultationTime: data.averageConsultationTime,
       banner: data.banner,
@@ -236,14 +267,93 @@ export const clinicService = {
     if (data.location !== undefined) {
       clinic.location = data.location ? { ...data.location, updatedAt: new Date() } : null;
     }
+    if (data.slotConfiguration !== undefined) clinic.slotConfiguration = data.slotConfiguration;
+    if (data.weeklyHours !== undefined) clinic.weeklyHours = data.weeklyHours;
+    if (data.holidays !== undefined) clinic.holidays = data.holidays;
     if (data.consultationFee !== undefined) clinic.consultationFee = data.consultationFee;
     if (data.averageConsultationTime !== undefined) clinic.averageConsultationTime = data.averageConsultationTime;
     if (data.status !== undefined) clinic.status = data.status;
     await clinic.save();
     return clinic;
   },
+
+  // ---- Patient-facing (read-only clinic discovery + slots) ----
+
+  /** Clinic discovery list for patients. Enriched with doctor count and today's
+   *  live seat availability, both batched to avoid per-clinic queries. */
+  async listForPatient(
+    filters: PatientClinicFilters,
+    page?: number,
+    limit?: number,
+  ): Promise<{ items: ClinicForPatient[]; pagination: PaginationMeta }> {
+    const { page: p, limit: l, skip } = resolvePagination(page, limit);
+    const filter = clinicRepository.buildPatientFilter(filters);
+    const { items, total } = await clinicRepository.list(filter, skip, l);
+
+    const ids = items.map((c) => c._id);
+    const grouped = await Doctor.aggregate<{ _id: Types.ObjectId; count: number }>([
+      { $match: { clinicId: { $in: ids }, status: { $ne: DOCTOR_STATUS.DELETED } } },
+      { $group: { _id: '$clinicId', count: { $sum: 1 } } },
+    ]);
+    const countByClinic = new Map(grouped.map((g) => [String(g._id), g.count]));
+
+    const today = todayStr();
+    const bookedByClinic = await appointmentRepository.occupancyForClinicsOnDate(ids, today);
+
+    const enriched = items.map((c) => {
+      const summary = appointmentService.daySummary(c, today, bookedByClinic.get(String(c._id)) ?? 0);
+      return {
+        ...c,
+        doctorsCount: countByClinic.get(String(c._id)) ?? 0,
+        openToday: summary.open,
+        seatsToday: summary.seats,
+        slotStatus: patientSlotStatus(summary.open, summary.seats),
+      };
+    }) as ClinicForPatient[];
+    return { items: enriched, pagination: buildPaginationMeta(p, l, total) };
+  },
+
+  /** Clinic detail for patients: the clinic, its active doctors, today summary. */
+  async getForPatient(id: string): Promise<ClinicDetailForPatient> {
+    const clinic = await clinicRepository.findById(id);
+    if (!clinic || clinic.status === CLINIC_STATUS.BANNED || clinic.status === CLINIC_STATUS.DELETED) {
+      throw new NotFoundError(ERROR_CODES.CLINIC_NOT_FOUND, 'Clinic not found');
+    }
+    const doctors = await Doctor.find({ clinicId: clinic._id, status: DOCTOR_STATUS.ACTIVE })
+      .sort({ createdAt: -1 })
+      .lean<DoctorDoc[]>();
+    const today = todayStr();
+    const bookedByClinic = await appointmentRepository.occupancyForClinicsOnDate([clinic._id], today);
+    const summary = appointmentService.daySummary(clinic, today, bookedByClinic.get(String(clinic._id)) ?? 0);
+    return {
+      clinic,
+      doctors,
+      doctorsCount: doctors.length,
+      today: {
+        date: today,
+        open: summary.open,
+        seats: summary.seats,
+        slotStatus: patientSlotStatus(summary.open, summary.seats),
+      },
+    };
+  },
+
+  /** Bookable slots for a clinic on a given date (the slot-picker feed). */
+  async slotsForPatient(id: string, date: string): Promise<DayAvailability> {
+    const clinic = await clinicRepository.findById(id);
+    if (!clinic || clinic.status === CLINIC_STATUS.BANNED || clinic.status === CLINIC_STATUS.DELETED) {
+      throw new NotFoundError(ERROR_CODES.CLINIC_NOT_FOUND, 'Clinic not found');
+    }
+    return appointmentService.getAvailability(clinic, date);
+  },
 };
 
 function toObjectId(id: string) {
   return new Types.ObjectId(id);
+}
+
+/** Collapse an availability summary into the patient-facing status label. */
+function patientSlotStatus(open: boolean, seats: number): PatientSlotStatus {
+  if (!open) return 'closed';
+  return seats <= 0 ? 'booked' : 'active';
 }

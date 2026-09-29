@@ -161,3 +161,60 @@
 .g4 { background: linear-gradient(135deg, #ffc38a, #ffe6cc); }
 .g5 { background: linear-gradient(135deg, #9db4d4, #d6e2f2); }
 .g6 { background: linear-gradient(135deg, #7cc4ff, #cfe8ff); }
+
+/* Error / retry state (clinic couldn't load). */
+.topbar { padding: calc(env(safe-area-inset-top) + 14px) 16px 6px; }
+.stateBox {
+  margin: 40px 28px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  font: 600 13.5px var(--font-sans); color: #9a9aa4;
+}
+.stateBox svg { color: #c0392b; }
+
+/* Date + slot picker (real availability from the clinic's slot config). */
+.pickerLabel { margin: 18px 2px 10px; font: 700 13px var(--font-sans); color: #16161a; }
+.dateStrip {
+  display: flex; gap: 9px; overflow-x: auto; scrollbar-width: none;
+  padding: 0 20px 4px; margin: 0 -20px;
+}
+.dateStrip::-webkit-scrollbar { display: none; }
+.dateChip {
+  flex: 0 0 auto; width: 56px; border: 1.5px solid #e3e3ea; background: #fff;
+  border-radius: 14px; padding: 9px 0; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.dateChip.on { border-color: #6a5cf0; background: #6a5cf0; }
+.dateDow { font: 600 11px var(--font-sans); color: #9a9aa4; }
+.dateChip.on .dateDow { color: rgba(255, 255, 255, 0.85); }
+.dateDay { font: 800 17px var(--font-sans); color: #16161a; }
+.dateChip.on .dateDay { color: #fff; }
+.slotGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+.slotChip {
+  border: 1.5px solid #e3e3ea; background: #fff; color: #16161a;
+  border-radius: 11px; padding: 11px 0; cursor: pointer;
+  font: 600 13px var(--font-sans); text-align: center;
+}
+.slotChip.on { border-color: #6a5cf0; background: #f2f0fe; color: #4a3fce; }
+.slotChip:disabled { opacity: 0.4; cursor: default; text-decoration: line-through; }
+.closedMsg {
+  padding: 14px; border-radius: 12px; background: #f7f7fa;
+  font: 600 13px var(--font-sans); color: #8a8a93; text-align: center;
+}
+.hint { padding: 8px 2px; font: 600 13px var(--font-sans); color: #9a9aa4; }
+.errline {
+  margin: 14px 0 0; padding: 11px 14px; border-radius: 12px;
+  background: #fdecea; color: #c0392b; font: 600 12.5px var(--font-sans);
+}
+
+/* Confirmation token + specialty tags. */
+.tokenBig {
+  margin: 18px auto 0; display: inline-flex; flex-direction: column; align-items: center;
+  gap: 2px; padding: 14px 30px; border-radius: 16px; background: #f2f0fe;
+}
+.tokenLabel { font: 700 11px var(--font-sans); letter-spacing: 0.05em; text-transform: uppercase; color: #6a5cf0; }
+.tokenNum { font: 800 30px var(--font-sans); color: #4a3fce; line-height: 1; }
+.tagRow { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; }
+.tag {
+  font: 600 12px var(--font-sans); color: #4a4a52;
+  background: #f0f0f3; border-radius: 999px; padding: 6px 12px;
+}

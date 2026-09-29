@@ -1,24 +1,16 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Poppins } from 'next/font/google';
 import {
   ArrowLeft, Building, Phone, Mail, MapPin,
-  Camera, Image as ImageIcon, Check, ChevronDown, Navigation,
+  Camera, Image as ImageIcon, Check, ChevronDown, Navigation, RefreshCw,
 } from '../_components/icons';
 import { SPECIALIZATIONS } from '../_lib/data';
 import { tapLight, notify } from '../_lib/haptic';
 import { clinicApi, uploadToCloudinary } from '../_lib/api';
 import { requestLocation } from '../_lib/permissions';
 import styles from './profile.module.css';
-
-const poppins = Poppins({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  display: 'swap',
-  fallback: ['Segoe UI', 'system-ui', 'sans-serif'],
-});
 
 const TIMES = [10, 15, 20, 30, 45, 60];
 const timeLabel = (m) => (m === 60 ? '1 hour' : `${m} minutes`);
@@ -29,6 +21,7 @@ const emailOk = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || '').trim())
 export default function ClinicProfile() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [loadErr, setLoadErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [phase, setPhase] = useState(null); // 'logo' | 'banner' | 'save'
@@ -61,13 +54,13 @@ export default function ClinicProfile() {
   const logoInput = useRef(null);
   const bannerInput = useRef(null);
 
-  // Load the clinic's real profile once.
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const me = await clinicApi.getMe();
-        if (!alive || !me) return;
+  // Load the clinic's real profile. Extracted so the error state can retry it.
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadErr('');
+    try {
+      const me = await clinicApi.getMe();
+      if (me) {
         setName(me.name || '');
         setPhone1(me.phone1 || '');
         setPhone2(me.phone2 || '');
@@ -83,14 +76,15 @@ export default function ClinicProfile() {
           setCoords({ lat: me.location.lat, lng: me.location.lng, accuracy: me.location.accuracy });
           setLocated(true);
         }
-      } catch (e) {
-        if (alive) setErr(e?.message || 'Could not load your clinic profile.');
-      } finally {
-        if (alive) setLoading(false);
       }
-    })();
-    return () => { alive = false; };
+    } catch (e) {
+      setLoadErr(e?.message || 'Could not load your clinic profile.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   useEffect(() => () => { if (logoUrl) URL.revokeObjectURL(logoUrl); }, [logoUrl]);
   useEffect(() => () => { if (bannerUrl) URL.revokeObjectURL(bannerUrl); }, [bannerUrl]);
@@ -196,7 +190,7 @@ export default function ClinicProfile() {
   const showBar = phase === 'logo' || phase === 'banner';
 
   return (
-    <main className={`${styles.root} ${poppins.className}`}>
+    <main className={styles.root}>
       <header className={styles.top}>
         <button className={styles.back} aria-label="Back" onClick={() => { tapLight(); router.back(); }}>
           <ArrowLeft size={22} />
@@ -210,6 +204,13 @@ export default function ClinicProfile() {
       <div className={styles.scroll}>
         {loading ? (
           <p className={styles.loading}>Loading profile…</p>
+        ) : loadErr ? (
+          <div className={styles.loadErr} role="alert">
+            <p className={styles.loadErrText}>{loadErr}</p>
+            <button type="button" className={styles.retryBtn} onClick={() => { tapLight(); load(); }}>
+              <RefreshCw size={17} />Try again
+            </button>
+          </div>
         ) : (
           <form className={styles.form} onSubmit={(e) => { e.preventDefault(); save(); }}>
             <input ref={bannerInput} type="file" accept="image/*" hidden onChange={(e) => pickImage('banner', e.target.files?.[0])} />

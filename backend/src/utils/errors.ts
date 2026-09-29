@@ -25,6 +25,7 @@ export const ERROR_CODES = {
   ADMIN_NOT_FOUND: 'ADMIN_NOT_FOUND',
   FAQ_NOT_FOUND: 'FAQ_NOT_FOUND',
   AUDIT_LOG_NOT_FOUND: 'AUDIT_LOG_NOT_FOUND',
+  APPOINTMENT_NOT_FOUND: 'APPOINTMENT_NOT_FOUND',
 
   ALREADY_BANNED: 'ALREADY_BANNED',
   NOT_BANNED: 'NOT_BANNED',
@@ -32,6 +33,23 @@ export const ERROR_CODES = {
   PHONE_TAKEN: 'PHONE_TAKEN',
   PROTECTED_RESOURCE: 'PROTECTED_RESOURCE',
   UPLOAD_NOT_CONFIGURED: 'UPLOAD_NOT_CONFIGURED',
+
+  // Booking / slots (patient app)
+  BOOKING_DISABLED: 'BOOKING_DISABLED',   // clinic not accepting online bookings
+  SLOT_UNAVAILABLE: 'SLOT_UNAVAILABLE',   // date closed / holiday / past / not a real slot
+  SLOT_FULL: 'SLOT_FULL',                 // slot at capacity
+  ALREADY_BOOKED: 'ALREADY_BOOKED',       // same patient already holds this slot
+
+  // Payments (Razorpay — single-gateway collection; clinic share settled offline)
+  PAYMENT_NOT_CONFIGURED: 'PAYMENT_NOT_CONFIGURED', // 503 — Razorpay keys not set
+  PAYMENT_REQUIRED: 'PAYMENT_REQUIRED',             // action needs a paid booking
+  PAYMENT_ORDER_FAILED: 'PAYMENT_ORDER_FAILED',     // Razorpay order creation failed
+  PAYMENT_VERIFICATION_FAILED: 'PAYMENT_VERIFICATION_FAILED', // checkout signature mismatch
+  PAYMENT_ALREADY_PAID: 'PAYMENT_ALREADY_PAID',     // order already confirmed
+  PAYMENT_NOT_FOUND: 'PAYMENT_NOT_FOUND',
+  HOLD_EXPIRED: 'HOLD_EXPIRED',                     // slot hold lapsed before payment
+  WEBHOOK_SIGNATURE_INVALID: 'WEBHOOK_SIGNATURE_INVALID', // webhook raw-body HMAC mismatch
+  REFUND_FAILED: 'REFUND_FAILED',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

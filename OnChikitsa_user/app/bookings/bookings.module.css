@@ -121,3 +121,47 @@
 .g4 { background: linear-gradient(135deg, #ffc38a, #ffe6cc); }
 .g5 { background: linear-gradient(135deg, #9db4d4, #d6e2f2); }
 .g6 { background: linear-gradient(135deg, #7cc4ff, #cfe8ff); }
+
+/* Real-booking additions: status pill, token row, cancel action, states. */
+.stPill {
+  flex: 0 0 auto; align-self: flex-start; font: 700 10.5px var(--font-sans);
+  letter-spacing: 0.03em; padding: 5px 10px; border-radius: 999px; text-transform: uppercase;
+  background: #eef0ff; color: #4a3fce;
+}
+.pillBooked { background: #eef0ff; color: #4a3fce; }
+.pillArrived { background: #e7f7ec; color: #1a8a45; }
+.pillConsulting { background: #fdf0e0; color: #b5730a; }
+.pillPending { background: #fdf0e0; color: #b5730a; }
+.tokenRow {
+  display: flex; align-items: center; gap: 8px; margin-top: 2px;
+  padding: 11px 14px; border-radius: 12px; background: #f2f0fe;
+}
+.tokenRow svg { color: #6a5cf0; flex: 0 0 auto; }
+.tokenTxt { font: 700 12px var(--font-sans); letter-spacing: 0.04em; text-transform: uppercase; color: #6a5cf0; }
+.tokenNo { margin-left: auto; font: 800 20px var(--font-sans); color: #4a3fce; line-height: 1; }
+.cancelBtn {
+  width: 100%; margin-top: 14px; border: 1.5px solid #f1c7c9; cursor: pointer;
+  background: #fdecec; color: #d13438; font: 700 13.5px var(--font-sans);
+  padding: 12px; border-radius: 12px;
+}
+.cancelBtn:disabled { opacity: 0.55; cursor: default; }
+.cancelBtn:not(:disabled):active { transform: scale(0.99); }
+.cancelErr {
+  margin: 14px 20px 0; padding: 11px 14px; border-radius: 12px;
+  background: #fdecea; color: #c0392b; font: 600 12.5px var(--font-sans);
+}
+.loadTxt { margin: 22px 20px; font: 600 13.5px var(--font-sans); color: #9a9aa4; }
+.miss { background: #fdf0e0; color: #b5730a; }
+.incomplete { background: #fdf0e0; color: #b5730a; }
+.emptyDanger { background: #fdecec; color: #c0392b; }
+
+/* PENDING_PAYMENT hold: a note + a "finish paying" call to action. */
+.pendingNote {
+  margin: 12px 0 0; font: 600 12.5px var(--font-sans); color: #8a6a12; line-height: 1.4;
+}
+.payBtn {
+  width: 100%; margin-top: 10px; border: none; cursor: pointer;
+  background: #6a5cf0; color: #fff; font: 700 13.5px var(--font-sans);
+  padding: 12px; border-radius: 12px;
+}
+.payBtn:active { transform: scale(0.99); }

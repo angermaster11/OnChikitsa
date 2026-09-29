@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Screen from '../../_components/Screen';
 import TopBar from '../../_components/TopBar';
 import Field from '../../_components/Field';
-import { Camera, User, Phone, Mail, IndianRupee, Award, Briefcase, Shield, Check, X } from '../../_components/icons';
+import { Camera, User, Phone, Mail, Award, Briefcase, Shield, Check, X } from '../../_components/icons';
 import { SPECIALIZATIONS } from '../../_lib/data';
 import { tapLight, notify } from '../../_lib/haptic';
 import { doctorApi, uploadToCloudinary } from '../../_lib/api';
@@ -15,7 +15,7 @@ const cleanPhone = (v) => String(v || '').replace(/[^\d+]/g, '');
 
 export default function AddDoctor() {
   const router = useRouter();
-  const [f, setF] = useState({ name: '', spec: '', qual: '', exp: '', reg: '', phone: '', email: '', fee: '' });
+  const [f, setF] = useState({ name: '', spec: '', qual: '', exp: '', reg: '', phone: '', email: '' });
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
 
   // Photo is OPTIONAL throughout — a doctor can be saved without one.
@@ -67,8 +67,6 @@ export default function AddDoctor() {
       const phone = cleanPhone(f.phone);
       if (phone.replace(/\D/g, '').length >= 7) payload.phone = phone;
       if (f.email.trim()) payload.email = f.email.trim();
-      const fee = parseInt(digitsOnly(f.fee), 10);
-      if (Number.isFinite(fee) && fee >= 0) payload.consultationFee = fee;
       if (photo) payload.photo = photo;
 
       await doctorApi.create(payload);
@@ -144,28 +142,24 @@ export default function AddDoctor() {
           </Field>
 
           <div className="field-row">
-            <Field label="Experience" htmlFor="d-exp" lead={<Briefcase size={18} />}>
-              <input id="d-exp" className="input" inputMode="numeric" placeholder="10 yrs" value={f.exp} onChange={set('exp')} />
+            <Field label="Experience" htmlFor="d-exp" lead={<Briefcase size={18} />} trail={<span className="input-suffix">yrs</span>}>
+              <input id="d-exp" className="input" inputMode="numeric" placeholder="10" value={f.exp} onChange={set('exp')} />
             </Field>
-            <Field label="Reg. no." htmlFor="d-reg" lead={<Shield size={18} />}>
-              <input id="d-reg" className="input" placeholder="MCI-00000" value={f.reg} onChange={set('reg')} />
+            <Field label="Reg. no." htmlFor="d-reg" optional lead={<Shield size={18} />}>
+              <input id="d-reg" className="input" placeholder="MCI-12345" value={f.reg} onChange={set('reg')} />
             </Field>
           </div>
 
-          <Field label="Phone" htmlFor="d-phone" lead={<Phone size={18} />}>
+          <Field label="Phone" htmlFor="d-phone" optional lead={<Phone size={18} />}>
             <input id="d-phone" className="input" type="tel" inputMode="tel" placeholder="+919000000000" value={f.phone} onChange={set('phone')} />
           </Field>
 
-          <Field label="Email" htmlFor="d-email" lead={<Mail size={18} />}>
+          <Field label="Email" htmlFor="d-email" optional lead={<Mail size={18} />}>
             <input id="d-email" className="input" type="email" placeholder="doctor@clinic.in" value={f.email} onChange={set('email')} />
           </Field>
 
-          <Field label="Consultation fee" htmlFor="d-fee" lead={<IndianRupee size={18} />}>
-            <input id="d-fee" className="input" type="number" inputMode="numeric" placeholder="800" value={f.fee} onChange={set('fee')} />
-          </Field>
-
           {err && (
-            <p role="alert" style={{ margin: '2px 2px 10px', fontSize: 13.5, fontWeight: 500, color: '#e5484d', lineHeight: 1.5 }}>
+            <p role="alert" style={{ margin: '2px 2px 10px', fontSize: 13.5, fontWeight: 500, color: 'var(--danger)', lineHeight: 1.5 }}>
               {err}
             </p>
           )}

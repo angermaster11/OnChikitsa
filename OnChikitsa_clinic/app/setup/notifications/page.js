@@ -2,18 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Poppins } from 'next/font/google';
 import { tapLight, notify } from '../../_lib/haptic';
 import { requestNotification, recordDecision } from '../../_lib/permissions';
 import styles from './notifications.module.css';
-
-// Same family as splash / onboarding / login / register.
-const poppins = Poppins({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  display: 'swap',
-  fallback: ['Segoe UI', 'system-ui', 'sans-serif'],
-});
 
 // Calendar cells: [x, y, fill]. A couple are tinted to look "booked".
 const CAL = [
@@ -134,7 +125,7 @@ export default function NotificationsSetup() {
   }
 
   return (
-    <main className={`${styles.root} ${poppins.className}`}>
+    <main className={styles.root}>
       <div className={styles.hero}>
         <Art />
         <h1 className={styles.title}>Stay updated with your clinic</h1>

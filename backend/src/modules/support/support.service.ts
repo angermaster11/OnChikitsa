@@ -72,6 +72,8 @@ export const supportService = {
       subject: data.subject,
       message: data.message,
       priority: data.priority,
+      category: data.category,
+      attachments: data.attachments ?? [],
       raisedByType: raiserTypeFor(actor),
       raisedById: new Types.ObjectId(actor.id),
       raisedByName: actor.name,
@@ -86,5 +88,32 @@ export const supportService = {
     const { page: p, limit: l, skip } = resolvePagination(page, limit);
     const { items, total } = await supportRepository.findByRaiser(raiserTypeFor(actor), actor.id, skip, l);
     return { items, pagination: buildPaginationMeta(p, l, total) };
+  },
+
+  /** One of the caller's own tickets. 404s (never 403) so ticket existence stays hidden. */
+  async getMine(actor: AuthActor, id: string): Promise<SupportTicketDoc> {
+    const ticket = await supportRepository.findById(id);
+    if (
+      !ticket ||
+      ticket.raisedByType !== raiserTypeFor(actor) ||
+      String(ticket.raisedById) !== actor.id
+    ) {
+      throw new NotFoundError(ERROR_CODES.NOT_FOUND, 'Support ticket not found');
+    }
+    return ticket;
+  },
+
+  /** Append a reply from the ticket's own raiser. Status is left untouched. */
+  async respondAsRaiser(actor: AuthActor, id: string, message: string): Promise<SupportTicketDoc> {
+    const ticket = await this.getMine(actor, id);
+    ticket.responses.push({
+      authorId: new Types.ObjectId(actor.id),
+      authorName: actor.name,
+      authorRole: actor.role,
+      message,
+      createdAt: new Date(),
+    });
+    await ticket.save();
+    return ticket;
   },
 };

@@ -1,18 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { api, ApiError, errorMessage } from '@/lib/api';
+import { useState } from 'react';
 import { usePaginatedList, useDebouncedValue } from '@/lib/useList';
 import type { SupportTicket, TicketStatus, TicketPriority } from '@/lib/types';
 import { PageHeader } from '@/components/PageHeader';
 import { Toolbar, SearchInput } from '@/components/Toolbar';
-import { Select, Textarea, Field } from '@/components/Input';
+import { Select } from '@/components/Input';
 import { DataTable, type Column } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
 import { StatusBadge } from '@/components/Badge';
-import { Alert, Spinner } from '@/components/Feedback';
+import { Alert } from '@/components/Feedback';
 import { Button } from '@/components/Button';
-import { Modal } from '@/components/Modal';
+import { TicketModal } from '@/components/TicketModal';
 import { formatDateTime, humanize } from '@/lib/format';
 
 const LIMIT = 20;
@@ -32,6 +31,7 @@ export default function SupportPage() {
     search: debouncedSearch || undefined,
     status: status || undefined,
     priority: priority || undefined,
+    raisedByType: 'USER',
   });
 
   const [openId, setOpenId] = useState<string | null>(null);
@@ -73,7 +73,7 @@ export default function SupportPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Support" description="Tickets raised by users and clinics." />
+      <PageHeader title="Support" description="Tickets raised by app users." />
 
       <Toolbar>
         <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search subject or message" />
@@ -114,152 +114,3 @@ export default function SupportPage() {
     </div>
   );
 }
-function TicketModal({
-  ticketId,
-  onClose,
-  onChanged,
-}: {
-  ticketId: string;
-  onClose: () => void;
-  onChanged: () => void;
-}) {
-  const [ticket, setTicket] = useState<SupportTicket | null>(null);
-  const [loadingDetail, setLoadingDetail] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  const [reply, setReply] = useState('');
-  const [replyBusy, setReplyBusy] = useState(false);
-  const [statusVal, setStatusVal] = useState<TicketStatus>('OPEN');
-  const [priorityVal, setPriorityVal] = useState<TicketPriority>('MEDIUM');
-  const [metaBusy, setMetaBusy] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  function applyTicket(t: SupportTicket) {
-    setTicket(t);
-    setStatusVal(t.status);
-    setPriorityVal(t.priority);
-  }
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoadingDetail(true);
-      setLoadError(null);
-      try {
-        const t = await api.get<SupportTicket>(`/admin/support/${ticketId}`);
-        if (!cancelled) applyTicket(t);
-      } catch (err) {
-        if (!cancelled) setLoadError(errorMessage(err));
-      } finally {
-        if (!cancelled) setLoadingDetail(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [ticketId]);
-
-  async function refetch() {
-    const t = await api.get<SupportTicket>(`/admin/support/${ticketId}`);
-    applyTicket(t);
-  }
-
-  function toError(err: unknown): string {
-    return err instanceof ApiError && err.isForbidden
-      ? 'You are not permitted to perform this action.'
-      : errorMessage(err);
-  }
-
-  async function sendReply() {
-    if (reply.trim().length < 1) return;
-    setReplyBusy(true);
-    setActionError(null);
-    try {
-      await api.post(`/admin/support/${ticketId}/respond`, { message: reply.trim() });
-      setReply('');
-      await refetch();
-      onChanged();
-    } catch (err) {
-      setActionError(toError(err));
-    } finally {
-      setReplyBusy(false);
-    }
-  }
-
-  async function applyMeta() {
-    setMetaBusy(true);
-    setActionError(null);
-    try {
-      await api.patch(`/admin/support/${ticketId}`, { status: statusVal, priority: priorityVal });
-      await refetch();
-      onChanged();
-    } catch (err) {
-      setActionError(toError(err));
-    } finally {
-      setMetaBusy(false);
-    }
-  }
-
-  const metaDirty = !!ticket && (statusVal !== ticket.status || priorityVal !== ticket.priority);
-
-  return (
-    <Modal open onClose={onClose} title={ticket?.subject ?? 'Ticket'} description={ticket ? humanize(ticket.raisedByType) : undefined} size="lg">
-      {loadingDetail ? (
-        <div className="flex items-center justify-center gap-2 py-12 text-slate-400">
-          <Spinner /> <span className="text-sm">Loading ticket…</span>
-        </div>
-      ) : loadError ? (
-        <Alert tone="error">{loadError}</Alert>
-      ) : ticket ? (
-        <div className="space-y-4">
-          {actionError && <Alert tone="error">{actionError}</Alert>}
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Status">
-              <Select value={statusVal} onChange={(e) => setStatusVal(e.target.value as TicketStatus)}>
-                {STATUSES.map((s) => <option key={s} value={s}>{humanize(s)}</option>)}
-              </Select>
-            </Field>
-            <Field label="Priority">
-              <Select value={priorityVal} onChange={(e) => setPriorityVal(e.target.value as TicketPriority)}>
-                {PRIORITIES.map((p) => <option key={p} value={p}>{humanize(p)}</option>)}
-              </Select>
-            </Field>
-          </div>
-          <div className="flex justify-end">
-            <Button size="sm" onClick={applyMeta} loading={metaBusy} disabled={!metaDirty}>Apply changes</Button>
-          </div>
-
-          <div className="space-y-3 border-t border-slate-100 pt-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Conversation</p>
-            <div className="rounded-lg bg-slate-50 p-3">
-              <p className="text-sm text-slate-800">{ticket.message}</p>
-              <p className="mt-1 text-xs text-slate-500">
-                {ticket.raisedByName ?? humanize(ticket.raisedByType)} · {formatDateTime(ticket.createdAt)}
-              </p>
-            </div>
-            {ticket.responses.map((r, i) => (
-              <div key={i} className="rounded-lg border border-slate-200 p-3">
-                <p className="text-sm text-slate-800">{r.message}</p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {r.authorName} · {humanize(r.authorRole)} · {formatDateTime(r.createdAt)}
-                </p>
-              </div>
-            ))}
-            {ticket.responses.length === 0 && (
-              <p className="text-sm text-slate-400">No replies yet.</p>
-            )}
-          </div>
-
-          <div className="space-y-2 border-t border-slate-100 pt-4">
-            <Field label="Reply">
-              <Textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Write a response to the ticket…" />
-            </Field>
-            <div className="flex justify-end">
-              <Button onClick={sendReply} loading={replyBusy} disabled={reply.trim().length < 1}>Send reply</Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </Modal>
-  );
-}
-

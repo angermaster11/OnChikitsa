@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Poppins } from 'next/font/google';
 import {
   ArrowLeft, Building, Mail, Calendar, Clock, Camera, Image as ImageIcon,
   ChevronDown, Check, Stethoscope, Tooth, Baby, HeartPulse, MoreHorizontal, FileText,
@@ -13,14 +12,6 @@ import { tapLight, notify } from '../../_lib/haptic';
 import { clinicApi, uploadToCloudinary } from '../../_lib/api';
 import { requestLocation } from '../../_lib/permissions';
 import styles from './clinic.module.css';
-
-// Same family as splash / onboarding / login so the whole flow reads as one.
-const poppins = Poppins({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  display: 'swap',
-  fallback: ['Segoe UI', 'system-ui', 'sans-serif'],
-});
 
 const COUNTRIES = [
   { dial: '+91', flag: '🇮🇳', len: 10 },
@@ -332,7 +323,7 @@ export default function ClinicSetup() {
           : '';
   const phasePct = phase === 'logo' ? logoPct : phase === 'banner' ? bannerPct : 0;
   return (
-    <main className={`${styles.root} ${poppins.className}`}>
+    <main className={styles.root}>
       <div className={styles.top}>
         <button className={styles.back} aria-label="Go back" onClick={back} disabled={busy}>
           <ArrowLeft size={22} />
@@ -394,15 +385,15 @@ export default function ClinicSetup() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 width: '100%', minHeight: 48, borderRadius: 14, marginBottom: 14, cursor: 'pointer',
                 fontSize: 14.5, fontWeight: 600, border: '1.5px solid',
-                borderColor: located ? '#00cfba' : '#d7dee6',
-                background: located ? '#eafaf6' : '#fff',
-                color: located ? '#0f766e' : '#1a1d29',
+                borderColor: located ? 'var(--primary)' : '#d7dee6',
+                background: located ? 'var(--primary-tint)' : '#fff',
+                color: located ? 'var(--primary-ink)' : '#1a1d29',
               }}>
               {located ? <Check size={18} /> : <Navigation size={18} />}
               {locating ? 'Getting location…' : located ? 'Current location captured' : 'Use current location'}
             </button>
             {locErr && (
-              <p role="alert" style={{ margin: '-6px 2px 12px', fontSize: 13, fontWeight: 500, color: '#e5484d', lineHeight: 1.5 }}>
+              <p role="alert" style={{ margin: '-6px 2px 12px', fontSize: 13, fontWeight: 500, color: 'var(--danger)', lineHeight: 1.5 }}>
                 {locErr}
               </p>
             )}
@@ -555,16 +546,16 @@ export default function ClinicSetup() {
       <div className={styles.footer}>
         {busy && phaseText && (
           <div style={{ margin: '0 2px 12px' }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#0f766e', marginBottom: 6 }}>{phaseText}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary-ink)', marginBottom: 6 }}>{phaseText}</div>
             {(phase === 'logo' || phase === 'banner') && (
               <div style={{ height: 6, borderRadius: 999, background: '#e6eaf0', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${phasePct}%`, background: '#00cfba', borderRadius: 999, transition: 'width .2s ease' }} />
+                <div style={{ height: '100%', width: `${phasePct}%`, background: 'var(--primary)', borderRadius: 999, transition: 'width .2s ease' }} />
               </div>
             )}
           </div>
         )}
         {error && (
-          <p role="alert" style={{ margin: '0 2px 12px', fontSize: 13.5, fontWeight: 500, color: '#e5484d', lineHeight: 1.5 }}>
+          <p role="alert" style={{ margin: '0 2px 12px', fontSize: 13.5, fontWeight: 500, color: 'var(--danger)', lineHeight: 1.5 }}>
             {error}
           </p>
         )}

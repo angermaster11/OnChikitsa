@@ -8,6 +8,7 @@
     "cap:add": "cap add android",
     "cap:sync": "cap sync android",
     "cap:run": "cap run android",
+    "cap": "next build && cap sync android && cap run android",
     "mobile": "next build && cap sync android && cap run android"
   },
   "dependencies": {

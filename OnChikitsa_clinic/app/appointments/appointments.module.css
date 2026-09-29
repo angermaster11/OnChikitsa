@@ -1,10 +1,10 @@
-/* Appointments — clean white + single teal accent (#00cfba), matching the
-   splash / onboarding / login / dashboard language. Poppins. Self-contained. */
+/* Appointments — clean white + the green brand accent, matching the dashboard.
+   Uses the global design tokens (var(--primary) family) + app-wide Open Sans. */
 
 .root {
-  --teal: #00cfba; --teal-strong: #00b3a1; --teal-ink: #068073;
-  --teal-tint: #e4f7f4; --teal-tint2: #d5f1eb;
-  --blue: #3f74f0; --blue-ink: #2e5fd8; --blue-tint: #eaf1ff;
+  --teal: var(--primary); --teal-strong: var(--primary-strong); --teal-ink: var(--primary-ink);
+  --teal-tint: var(--primary-tint); --teal-tint2: var(--primary-tint-2);
+  --blue: var(--accent); --blue-ink: var(--accent-strong); --blue-tint: var(--accent-tint);
   --grey: #647082; --grey-tint: #eef1f0;
   --ink: #1a1d29; --ink2: #263847; --body: #5a6472; --muted: #7e7c7d; --faint: #9aa1ad;
   --line: #ebf0ee; --card: #ffffff;
@@ -86,41 +86,43 @@
 }
 .chipOn { background: linear-gradient(135deg, #12d3bf, #00b3a1); border-color: transparent; color: #fff; box-shadow: 0 6px 16px rgba(0,179,161,0.28); }
 .chipOn .chipN { background: rgba(255,255,255,0.28); color: #fff; }
-/* appointment cards */
-.list { display: flex; flex-direction: column; gap: 12px; }
+/* appointment cards — status accent rail + patient row + a divided meta row */
+.list { display: flex; flex-direction: column; gap: 13px; }
 .card {
-  position: relative; display: flex; align-items: flex-start; gap: 12px; cursor: pointer; text-align: left;
-  padding: 14px; border-radius: 20px; background: #fff; border: 1px solid var(--line);
-  box-shadow: 0 8px 22px rgba(18,40,50,0.05);
+  position: relative; display: flex; align-items: stretch; cursor: pointer; text-align: left; width: 100%;
+  overflow: hidden; border-radius: 18px; background: #fff; border: 1px solid var(--line);
+  box-shadow: 0 6px 18px rgba(18,40,50,0.06); transition: box-shadow 0.15s, transform 0.1s;
 }
-.card:active { transform: scale(0.994); }
-.timeBlk {
-  flex: none; width: 60px; padding: 10px 4px; border-radius: 14px; text-align: center;
-  display: flex; flex-direction: column; gap: 1px; font-size: 11px; font-weight: 700; line-height: 1.1;
-}
-.timeBlk b { font-size: 11px; font-weight: 800; }
-.tb_green { background: var(--teal-tint); color: var(--teal-ink); }
-.tb_blue { background: var(--blue-tint); color: var(--blue-ink); }
-.tb_grey { background: var(--grey-tint); color: var(--grey); }
+.card:active { transform: scale(0.993); }
+.rail { flex: none; width: 5px; align-self: stretch; }
+.rail_green { background: var(--teal); } .rail_blue { background: var(--blue); }
+.rail_amber { background: #f59e0b; } .rail_red { background: #e05252; } .rail_grey { background: #cdd5df; }
+.cardMain { flex: 1 1 auto; min-width: 0; padding: 13px 15px; display: flex; flex-direction: column; gap: 11px; }
+.cardTop { display: flex; align-items: center; gap: 12px; }
 .av {
-  flex: none; width: 42px; height: 42px; border-radius: 13px; margin-top: 1px;
-  display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700;
+  flex: none; width: 46px; height: 46px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center; font-size: 15.5px; font-weight: 800;
 }
 .av_green { background: var(--teal-tint2); color: var(--teal-ink); }
 .av_blue { background: var(--blue-tint); color: var(--blue-ink); }
+.av_amber { background: #ffe9c7; color: #b26a00; }
+.av_red { background: #fbe0e0; color: #c0392b; }
 .av_grey { background: var(--grey-tint); color: var(--grey); }
-.mid { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.name { font-size: 15.5px; font-weight: 700; color: var(--ink); }
+.who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.name { font-size: 15.5px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .meta { font-size: 12.5px; font-weight: 500; color: var(--muted); }
-.phone, .type { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--muted); }
-.type { color: var(--teal-ink); font-weight: 600; }
-.end { flex: none; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch; gap: 8px; }
-.pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px 5px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
+.pill { flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
 .pill i { width: 6px; height: 6px; border-radius: 50%; flex: none; }
 .pill_green { background: var(--teal-tint); color: var(--teal-ink); } .pill_green i { background: var(--teal); }
 .pill_blue { background: var(--blue-tint); color: var(--blue-ink); } .pill_blue i { background: var(--blue); }
+.pill_amber { background: #fff3e0; color: #b26a00; } .pill_amber i { background: #f59e0b; }
+.pill_red { background: #fdecec; color: #c0392b; } .pill_red i { background: #e05252; }
 .pill_grey { background: var(--grey-tint); color: var(--grey); } .pill_grey i { background: #9aa6b6; }
-.chev { color: var(--faint); }
+.cardMeta { display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; padding-top: 11px; border-top: 1px solid var(--line); }
+.mItem { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; color: var(--body); }
+.mItem svg { color: var(--faint); flex: none; }
+.mTok { color: var(--teal-ink); }
+.mTok svg { color: var(--teal); }
 .empty { text-align: center; padding: 40px 0; color: var(--muted); font-size: 14px; }
 /* bottom tab bar */
 .tabbar {

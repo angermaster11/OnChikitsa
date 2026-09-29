@@ -4,7 +4,14 @@ import { sendSuccess, sendPaginated } from '../../utils/response';
 import { UnauthorizedError } from '../../utils/errors';
 import { getClientIp, getUserAgent } from '../../utils/http';
 import { clinicService } from './clinic.service';
-import type { ListClinicsQuery, AdminUpdateClinicBody, BanBody, RegisterClinicBody } from './clinic.validation';
+import type {
+  ListClinicsQuery,
+  ListPatientClinicsQuery,
+  SlotsQuery,
+  AdminUpdateClinicBody,
+  BanBody,
+  RegisterClinicBody,
+} from './clinic.validation';
 
 function ctx(req: Request) {
   return { ip: getClientIp(req), userAgent: getUserAgent(req) };
@@ -73,5 +80,27 @@ export const clinicController = {
     const actor = requireActor(req);
     const clinic = await clinicService.updateSelf(actor.id, req.body as AdminUpdateClinicBody);
     sendSuccess(res, clinic, 'Profile updated');
+  }),
+
+  // ---- Patient-facing (Firebase USER) ----
+  listForPatient: asyncHandler(async (req: Request, res: Response) => {
+    const q = req.query as unknown as ListPatientClinicsQuery;
+    const { items, pagination } = await clinicService.listForPatient(
+      { search: q.search, specialty: q.specialty, city: q.city },
+      q.page,
+      q.limit,
+    );
+    sendPaginated(res, items, pagination);
+  }),
+
+  getForPatient: asyncHandler(async (req: Request, res: Response) => {
+    const detail = await clinicService.getForPatient(req.params.id);
+    sendSuccess(res, detail, 'Clinic retrieved');
+  }),
+
+  slots: asyncHandler(async (req: Request, res: Response) => {
+    const { date } = req.query as unknown as SlotsQuery;
+    const availability = await clinicService.slotsForPatient(req.params.id, date);
+    sendSuccess(res, availability, 'Slots retrieved');
   }),
 };

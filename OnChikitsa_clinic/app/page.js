@@ -2,20 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Poppins } from 'next/font/google';
 import { flow } from './_lib/flow';
 import { resolveRoute } from './_lib/onboarding';
 import styles from './splash.module.css';
-
-// Geometric bold sans — the closest freely-licensed match to Zocdoc's
-// "Sharp Sans Display". Loaded via next/font (same pipeline as the app's Open
-// Sans), self-hosted at build so it works offline inside Capacitor.
-const wordmark = Poppins({
-  subsets: ['latin'],
-  weight: ['600', '700'],
-  display: 'swap',
-  fallback: ['Segoe UI', 'system-ui', 'sans-serif'],
-});
 
 export default function Splash() {
   const router = useRouter();
@@ -81,7 +70,7 @@ export default function Splash() {
     >
       <div className={styles.lockup} style={{ '--dx': `${dx}px` }}>
         <img ref={logoRef} className={styles.logo} src="/splash/logo.png" alt="" draggable="false" />
-        <span className={`${styles.word} ${wordmark.className}`} aria-hidden="true">OnChikitsa</span>
+        <span className={styles.word} aria-hidden="true">OnChikitsa</span>
       </div>
     </main>
   );

@@ -19,6 +19,41 @@ export interface ClinicLocation {
 }
 
 /**
+ * Appointment slot rules for the clinic (the "Slot Configuration" screen in the
+ * clinic app). All optional so a clinic can save a partial config; the app
+ * falls back to sensible defaults for anything unset.
+ */
+export interface SlotConfiguration {
+  slotDurationMin?: number;      // length of each consultation slot, minutes
+  breakBetweenSlotsMin?: number; // buffer added after each slot, minutes
+  maxPatientsPerSlot?: number;   // overbooking capacity per slot
+  advanceBookingDays?: number;   // how far ahead patients may book
+  sameDayBooking?: boolean;      // allow patients to book for today
+  bookingEnabled?: boolean;      // accepting new online bookings
+}
+
+/** One open window within a day, times as 24-hour "HH:MM". */
+export interface DayWindow {
+  start: string;
+  end: string;
+}
+
+/**
+ * Clinic-wide weekly opening hours. Each weekday holds zero or more open
+ * windows (e.g. 09:00–12:00 and 16:00–20:00). An empty array means the clinic
+ * is closed that weekday (a weekly off, e.g. Sunday).
+ */
+export interface WeeklyHours {
+  sun?: DayWindow[];
+  mon?: DayWindow[];
+  tue?: DayWindow[];
+  wed?: DayWindow[];
+  thu?: DayWindow[];
+  fri?: DayWindow[];
+  sat?: DayWindow[];
+}
+
+/**
  * One clinic account = one clinic (no multi-role/staff hierarchy inside it).
  * Authenticated via Firebase phone OTP; no password stored. Doctors are a
  * separate collection referencing this clinic.
@@ -37,9 +72,14 @@ export interface ClinicDoc extends Document<Types.ObjectId> {
   specialties?: string[];
   address?: ClinicAddress;
   location?: ClinicLocation | null;
+  slotConfiguration?: SlotConfiguration;
+  weeklyHours?: WeeklyHours;
+  holidays?: string[];           // specific closed dates, "YYYY-MM-DD"
   status: ClinicStatus;
   consultationFee?: number;
   averageConsultationTime?: number;
+  /** Per-clinic commission override (0–100). Falls back to settings.defaultCommissionPercent. */
+  commissionPercent?: number | null;
   bannedAt?: Date | null;
   bannedBy?: Types.ObjectId | null;
   banReason?: string | null;
@@ -70,6 +110,39 @@ const locationSchema = new Schema<ClinicLocation>(
   { _id: false },
 );
 
+const slotConfigurationSchema = new Schema<SlotConfiguration>(
+  {
+    slotDurationMin: { type: Number, min: 5, max: 240 },
+    breakBetweenSlotsMin: { type: Number, min: 0, max: 120 },
+    maxPatientsPerSlot: { type: Number, min: 1, max: 50 },
+    advanceBookingDays: { type: Number, min: 0, max: 365 },
+    sameDayBooking: { type: Boolean },
+    bookingEnabled: { type: Boolean },
+  },
+  { _id: false },
+);
+
+const dayWindowSchema = new Schema<DayWindow>(
+  {
+    start: { type: String, required: true }, // "HH:MM", 24-hour
+    end: { type: String, required: true },
+  },
+  { _id: false },
+);
+
+const weeklyHoursSchema = new Schema<WeeklyHours>(
+  {
+    sun: { type: [dayWindowSchema], default: undefined },
+    mon: { type: [dayWindowSchema], default: undefined },
+    tue: { type: [dayWindowSchema], default: undefined },
+    wed: { type: [dayWindowSchema], default: undefined },
+    thu: { type: [dayWindowSchema], default: undefined },
+    fri: { type: [dayWindowSchema], default: undefined },
+    sat: { type: [dayWindowSchema], default: undefined },
+  },
+  { _id: false },
+);
+
 const clinicSchema = new Schema<ClinicDoc>(
   {
     firebaseUid: { type: String, required: true, unique: true, trim: true },
@@ -85,6 +158,9 @@ const clinicSchema = new Schema<ClinicDoc>(
     specialties: { type: [String], default: undefined },
     address: { type: addressSchema, default: undefined },
     location: { type: locationSchema, default: null },
+    slotConfiguration: { type: slotConfigurationSchema, default: undefined },
+    weeklyHours: { type: weeklyHoursSchema, default: undefined },
+    holidays: { type: [String], default: undefined },
     status: {
       type: String,
       enum: Object.values(CLINIC_STATUS),
@@ -93,6 +169,7 @@ const clinicSchema = new Schema<ClinicDoc>(
     },
     consultationFee: { type: Number, min: 0 },
     averageConsultationTime: { type: Number, min: 0 },
+    commissionPercent: { type: Number, min: 0, max: 100, default: null },
     bannedAt: { type: Date, default: null },
     bannedBy: { type: Schema.Types.ObjectId, ref: 'Admin', default: null },
     banReason: { type: String, default: null },

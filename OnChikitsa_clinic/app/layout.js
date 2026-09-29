@@ -4,7 +4,7 @@ import NativeShell from './_components/NativeShell';
 
 const openSans = Open_Sans({
   subsets: ['latin'],
-  weight: ['400', '600', '700'],
+  weight: ['400', '500', '600', '700', '800'],
   variable: '--font-sans',
   display: 'swap',
 });
@@ -17,9 +17,10 @@ export const metadata = {
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 5,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: 'cover',
-  themeColor: '#1c74e0',
+  themeColor: '#00cfba',
 };
 
 export default function RootLayout({ children }) {
