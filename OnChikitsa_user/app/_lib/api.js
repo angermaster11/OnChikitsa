@@ -118,8 +118,29 @@ export const supportApi = {
    * The new ticket then surfaces in the admin panel's Support section.
    */
   create: (payload) => request('/user/support', { method: 'POST', body: payload }),
-  /** GET /user/support — the caller's own previously-raised tickets. */
+  /** GET /user/support — the caller's own previously-raised tickets (paginated → items array). */
   listMine: () => request('/user/support'),
+  /** GET /user/support/:id — one ticket: subject + opening message + responses[] thread. */
+  get: (id) => request(`/user/support/${id}`),
+  /** POST /user/support/:id/respond — append a reply to the caller's own ticket thread. */
+  respond: (id, message) => request(`/user/support/${id}/respond`, { method: 'POST', body: { message } }),
+};
+
+export const favoriteApi = {
+  /** GET /user/favorites/ids — just the caller's favourite clinic ids (cheap; seeds hearts). */
+  listIds: () => request('/user/favorites/ids'),
+  /** GET /user/favorites — the caller's favourite clinics as enriched cards + their ids. */
+  list: () => request('/user/favorites'),
+  /** PUT /user/favorites/:clinicId — add to favourites. Returns { favoriteClinicIds }. */
+  add: (clinicId) => {
+    invalidateMe(); // favourites live on the user doc; drop the stale /me cache
+    return request(`/user/favorites/${clinicId}`, { method: 'PUT' });
+  },
+  /** DELETE /user/favorites/:clinicId — remove from favourites. Returns { favoriteClinicIds }. */
+  remove: (clinicId) => {
+    invalidateMe();
+    return request(`/user/favorites/${clinicId}`, { method: 'DELETE' });
+  },
 };
 
 export const clinicApi = {

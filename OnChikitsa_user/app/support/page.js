@@ -119,6 +119,7 @@ function FaqsTab() {
 
 /** Query tab — raise a support ticket (subject + message → POST /user/support). */
 function QueryTab() {
+  const router = useRouter();
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -147,9 +148,10 @@ function QueryTab() {
       <div className={styles.success}>
         <span className={styles.successIcon}><CheckCircle size={30} /></span>
         <p className={styles.successTitle}>Query sent</p>
-        <p className={styles.successSub}>Our support team has your message and will get back to you soon.</p>
+        <p className={styles.successSub}>We&apos;ll reply in Messages — you&apos;ll find this query and its responses there as a chat.</p>
+        <button className={styles.successBtn} onClick={() => router.push('/messages')}>View in Messages</button>
         <button
-          className={styles.successBtn}
+          className={styles.successBtnAlt}
           onClick={() => { setDone(false); setSubject(''); setMessage(''); }}
         >
           Send another

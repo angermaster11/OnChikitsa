@@ -14,10 +14,13 @@ export const listPaymentsQuerySchema = paginationQuerySchema.extend({
   search: z.string().trim().max(120).optional(),
 });
 
-/** Clinic's own transactions list: pagination + optional status / settlement status. */
+/** Clinic's own transactions list: pagination + optional status / settlement status
+ *  + an inclusive createdAt range (from/to) for the today/month/year/custom filters. */
 export const listClinicPaymentsQuerySchema = paginationQuerySchema.extend({
   status: z.nativeEnum(PAYMENT_STATUS).optional(),
   settlementStatus: z.nativeEnum(SETTLEMENT_STATUS).optional(),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
 });
 
 /**

@@ -114,6 +114,10 @@ export function mapClinicCard(raw) {
     status: raw.slotStatus || 'closed',
     seats: raw.seatsToday ?? 0,
     doctorsCount: raw.doctorsCount ?? 0,
+    // Clinic-uploaded images (Cloudinary URLs). Empty when unset → the gradient +
+    // glyph tile is the default. banner = wide hero, logo = square thumbnail.
+    banner: raw.banner || '',
+    logo: raw.logo || '',
     glyph: glyphFor(raw),
     g: gradientFor(id),
   };
@@ -131,6 +135,8 @@ export function mapClinicDetail(detail) {
     area: areaOf(c),
     status: today.slotStatus || 'closed',
     seats: today.seats ?? 0,
+    banner: c.banner || '',
+    logo: c.logo || '',
     glyph: glyphFor(c),
     g: gradientFor(id),
     phone: c.phone1 || '',
@@ -178,6 +184,9 @@ export function mapBooking(appt) {
     : appt.status === 'NO_SHOW' ? 'missed' : 'completed';
   return {
     id: String(appt._id),
+    // Human-readable booking reference. Falls back to a short id-derived code for
+    // legacy rows saved before the backend started minting appointmentCode.
+    code: appt.appointmentCode || (appt._id ? `OC-${String(appt._id).slice(-6).toUpperCase()}` : ''),
     clinicId: String(appt.clinicId || ''),
     clinic: appt.clinicName || 'Clinic',
     area: appt.clinicArea || '',
@@ -186,12 +195,18 @@ export function mapBooking(appt) {
     timeLabel: `${to12(appt.slotStart)} – ${to12(appt.slotEnd)}`,
     slotStart: appt.slotStart,
     slotEnd: appt.slotEnd,
+    // Expected consultation time — UI placeholder only for now; queue-based ETA
+    // logic will fill this later (null renders as "—").
+    expectedTime: null,
     token: appt.tokenNo,
     status: appt.status,
     statusLabel: STATUS_LABEL[appt.status] || appt.status,
     patient: appt.patient?.name || 'You',
     outcome,
     pendingPayment: appt.status === 'PENDING_PAYMENT',
+    // The clinic pushed this still-waiting patient to the back of the live queue.
+    // Only meaningful while they're still waiting (BOOKED/ARRIVED).
+    skipped: Boolean(appt.skippedAt) && (appt.status === 'BOOKED' || appt.status === 'ARRIVED'),
     cancellable: appt.status === 'BOOKED',
     glyph: glyphFor({ name: appt.clinicName }),
     g: gradientFor(String(appt.clinicId || appt.clinicName || appt._id)),

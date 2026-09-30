@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Clock, Calendar, Ticket, Home, Compass, User, AlertCircle,
@@ -31,8 +31,10 @@ export default function Bookings() {
   const [cancelId, setCancelId] = useState('');
   const [cancelErr, setCancelErr] = useState('');
 
-  // Fetch both scopes from the backend and map to card shapes. Reused after a cancel.
-  const load = async () => {
+  // Fetch both scopes from the backend and map to card shapes. Reused after a
+  // cancel and whenever the app returns to the foreground (so a clinic-side
+  // status change — checked in / in consultation / missed — shows up live).
+  const load = useCallback(async () => {
     setLoading(true); setError('');
     try {
       const [up, pa] = await Promise.all([bookingApi.listMine('upcoming'), bookingApi.listMine('past')]);
@@ -43,7 +45,7 @@ export default function Bookings() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Fast auth gate + onboarding guard, then load the caller's real bookings.
   useEffect(() => {
@@ -61,7 +63,19 @@ export default function Bookings() {
       } catch { /* offline → stay on the bookings screen */ }
     })();
     return () => { cancelled = true; };
-  }, [router]);
+  }, [router, load]);
+
+  // Refetch when the app comes back to the foreground so clinic-side status
+  // changes (checked in, in consultation, missed) appear without a manual reload.
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      document.removeEventListener('visibilitychange', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [load]);
 
   const cancel = async (id) => {
     setCancelId(id); setCancelErr('');
@@ -126,13 +140,14 @@ export default function Bookings() {
   );
 }
 
-// An upcoming booking: token + live status, the date/slot, and (while still just
-// BOOKED) a cancel action. A PENDING_PAYMENT hold shows as "Payment pending" with a
-// Complete-payment action instead — no token yet (assigned on confirmation). There's
-// no fabricated "now serving" — the backend has no live-queue pointer, so we show the
-// real appointment status instead.
+// An upcoming booking: the live status is the hero (prominent pill), with the
+// token, date/slot and an expected-time row below. Cancel is deliberately
+// de-emphasised — a small link up by the status — and only actually cancels after
+// an inline confirm step. A PENDING_PAYMENT hold shows as "Payment pending" with a
+// Complete-payment action instead — no token yet (assigned on confirmation).
 function UpcomingCard({ b, onCancel, cancelling, onComplete }) {
   const Glyph = GLYPHS[b.glyph] || Building;
+  const [confirming, setConfirming] = useState(false);
   return (
     <article className={styles.liveCard}>
       <div className={styles.cardHead}>
@@ -140,8 +155,13 @@ function UpcomingCard({ b, onCancel, cancelling, onComplete }) {
         <div className={styles.hBody}>
           <h2 className={styles.name}>{b.clinic}</h2>
           {b.area && <p className={styles.meta}>{b.area}</p>}
+          {b.code && <p className={styles.apptId}>ID · {b.code}</p>}
         </div>
-        <span className={`${styles.stPill} ${styles[PILL_CLASS[b.status]] || ''}`}>{b.statusLabel}</span>
+        <div className={styles.headRight}>
+          <span className={`${styles.stPill} ${styles.stPillLg} ${b.skipped ? styles.pillSkipped : (styles[PILL_CLASS[b.status]] || '')}`}>
+            {b.skipped ? 'Skipped' : b.statusLabel}
+          </span>
+        </div>
       </div>
 
       <div className={styles.tokenRow}>
@@ -161,16 +181,38 @@ function UpcomingCard({ b, onCancel, cancelling, onComplete }) {
         </div>
       </div>
 
+      {!b.pendingPayment && (
+        <div className={styles.expectRow}>
+          <Clock size={16} />
+          <span className={styles.expectTxt}>Expected time</span>
+          <span className={styles.expectVal}>{b.expectedTime || '—'}</span>
+        </div>
+      )}
+
+      {b.skipped && (
+        <p className={styles.skipNote}>The clinic moved you further down the queue for now — please stay nearby, you’ll be called again shortly.</p>
+      )}
+
       {b.pendingPayment ? (
         <>
           <p className={styles.pendingNote}>Payment not completed yet — finish paying to confirm this slot.</p>
           <button className={styles.payBtn} onClick={() => onComplete(b)}>Complete payment</button>
         </>
-      ) : b.cancellable && (
-        <button className={styles.cancelBtn} disabled={cancelling} onClick={() => onCancel(b.id)}>
-          {cancelling ? 'Cancelling…' : 'Cancel booking'}
-        </button>
-      )}
+      ) : confirming ? (
+        <div className={styles.confirmBox}>
+          <p className={styles.confirmQ}>Cancel this booking? This can’t be undone.</p>
+          <div className={styles.confirmActions}>
+            <button className={styles.keepBtn} disabled={cancelling} onClick={() => setConfirming(false)}>Keep it</button>
+            <button className={styles.confirmCancelBtn} disabled={cancelling} onClick={() => onCancel(b.id)}>
+              {cancelling ? 'Cancelling…' : 'Yes, cancel'}
+            </button>
+          </div>
+        </div>
+      ) : b.cancellable ? (
+        <div className={styles.cancelRow}>
+          <button className={styles.cancelLink} onClick={() => setConfirming(true)}>Cancel booking</button>
+        </div>
+      ) : null}
     </article>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Home, Calendar, Ticket, Users, Grid } from './icons';
+import { Home, Calendar, Ticket, TrendingUp, Grid } from './icons';
 import { tapLight } from '../_lib/haptic';
 
 // 5-tab bar shown only on tab-root screens. `active` is one of the keys below.
@@ -9,7 +9,7 @@ const TABS = [
   { key: 'home', label: 'Home', full: 'Home', route: '/dashboard', Icon: Home },
   { key: 'appointments', label: 'Appts', full: 'Appointments', route: '/appointments', Icon: Calendar },
   { key: 'queue', label: 'Queue', full: 'Queue', route: '/queue', Icon: Ticket },
-  { key: 'patients', label: 'Patients', full: 'Patients', route: '/patients', Icon: Users },
+  { key: 'earnings', label: 'Earnings', full: 'Earnings', route: '/earnings', Icon: TrendingUp },
   { key: 'more', label: 'More', full: 'More', route: '/more', Icon: Grid },
 ];
 

@@ -22,7 +22,7 @@ const MENU = [
 ];
 
 // Menu rows that navigate somewhere (the rest are placeholders for now).
-const MENU_ROUTES = { profile: '/account', appointments: '/bookings' };
+const MENU_ROUTES = { profile: '/account', favourites: '/favourites', messages: '/messages', appointments: '/bookings' };
 
 export default function Profile() {
   const router = useRouter();

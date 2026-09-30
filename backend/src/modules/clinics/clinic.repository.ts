@@ -14,6 +14,8 @@ export interface PatientClinicFilters {
   search?: string;
   specialty?: string;
   city?: string;
+  /** Restrict to a specific set of clinic ids (e.g. the caller's favourites). */
+  ids?: string[];
 }
 
 function escapeRegex(input: string): string {
@@ -53,6 +55,9 @@ export const clinicRepository = {
     if (filters.search) {
       const rx = new RegExp(escapeRegex(filters.search.trim()), 'i');
       query.$or = [{ name: rx }, { specialties: rx }, { specification: rx }, { 'address.city': rx }];
+    }
+    if (filters.ids) {
+      query._id = { $in: filters.ids.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id)) };
     }
     return query;
   },

@@ -6,9 +6,11 @@ import {
   AUTH_PROVIDER,
   ONBOARDING_STATUS,
   PERMISSION_STATUS,
+  CLINIC_STATUS,
 } from '../../utils/constants';
 import { AUDIT_ACTIONS } from '../../utils/auditActions';
 import { normalizeEmail, normalizePhone } from '../../utils/normalize';
+import { clinicRepository } from '../clinics/clinic.repository';
 import { resolvePagination } from '../../utils/pagination';
 import { buildPaginationMeta, type PaginationMeta } from '../../utils/response';
 import { runInTransaction } from '../../utils/transaction';
@@ -233,6 +235,40 @@ export const userService = {
     if (data.location !== undefined) user.location = { ...data.location, updatedAt: new Date() };
     await user.save();
     return user;
+  },
+
+  /** Add a clinic to the caller's favourites. Idempotent; rejects unknown/hidden clinics. */
+  async addFavorite(userId: string, clinicId: string): Promise<string[]> {
+    if (!Types.ObjectId.isValid(clinicId)) {
+      throw new NotFoundError(ERROR_CODES.CLINIC_NOT_FOUND, 'Clinic not found');
+    }
+    const clinic = await clinicRepository.findById(clinicId);
+    if (!clinic || clinic.status === CLINIC_STATUS.BANNED || clinic.status === CLINIC_STATUS.DELETED) {
+      throw new NotFoundError(ERROR_CODES.CLINIC_NOT_FOUND, 'Clinic not found');
+    }
+    const user = await userRepository.findById(userId);
+    if (!user) throw new NotFoundError(ERROR_CODES.USER_NOT_FOUND, 'User not found');
+    if (!user.favoriteClinics.some((id) => String(id) === clinicId)) {
+      user.favoriteClinics.push(new Types.ObjectId(clinicId));
+      await user.save();
+    }
+    return user.favoriteClinics.map((id) => String(id));
+  },
+
+  /** Remove a clinic from the caller's favourites. Idempotent. */
+  async removeFavorite(userId: string, clinicId: string): Promise<string[]> {
+    const user = await userRepository.findById(userId);
+    if (!user) throw new NotFoundError(ERROR_CODES.USER_NOT_FOUND, 'User not found');
+    user.favoriteClinics = user.favoriteClinics.filter((id) => String(id) !== clinicId);
+    await user.save();
+    return user.favoriteClinics.map((id) => String(id));
+  },
+
+  /** The caller's favourite clinic ids (in insertion order). */
+  async getFavoriteIds(userId: string): Promise<string[]> {
+    const user = await userRepository.findById(userId);
+    if (!user) throw new NotFoundError(ERROR_CODES.USER_NOT_FOUND, 'User not found');
+    return user.favoriteClinics.map((id) => String(id));
   },
 };
 

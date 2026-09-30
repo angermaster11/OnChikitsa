@@ -4,6 +4,7 @@ import { sendSuccess, sendPaginated } from '../../utils/response';
 import { UnauthorizedError } from '../../utils/errors';
 import { getClientIp, getUserAgent } from '../../utils/http';
 import { userService } from './user.service';
+import { clinicService } from '../clinics/clinic.service';
 import type { ListUsersQuery, AdminUpdateUserBody, BanBody, RegisterUserBody, UpdateProfileBody } from './user.validation';
 
 function ctx(req: Request) {
@@ -73,5 +74,33 @@ export const userController = {
     const actor = requireActor(req);
     const user = await userService.updateSelf(actor.id, req.body as UpdateProfileBody);
     sendSuccess(res, user, 'Profile updated');
+  }),
+
+  // ---- Favourites (app-facing) ----
+  addFavorite: asyncHandler(async (req: Request, res: Response) => {
+    const actor = requireActor(req);
+    const favoriteClinicIds = await userService.addFavorite(actor.id, req.params.id);
+    sendSuccess(res, { favoriteClinicIds }, 'Added to favourites');
+  }),
+
+  removeFavorite: asyncHandler(async (req: Request, res: Response) => {
+    const actor = requireActor(req);
+    const favoriteClinicIds = await userService.removeFavorite(actor.id, req.params.id);
+    sendSuccess(res, { favoriteClinicIds }, 'Removed from favourites');
+  }),
+
+  favoriteIds: asyncHandler(async (req: Request, res: Response) => {
+    const actor = requireActor(req);
+    const favoriteClinicIds = await userService.getFavoriteIds(actor.id);
+    sendSuccess(res, { favoriteClinicIds }, 'Favourites retrieved');
+  }),
+
+  listFavorites: asyncHandler(async (req: Request, res: Response) => {
+    const actor = requireActor(req);
+    const favoriteClinicIds = await userService.getFavoriteIds(actor.id);
+    const clinics = favoriteClinicIds.length
+      ? (await clinicService.listForPatient({ ids: favoriteClinicIds }, 1, favoriteClinicIds.length)).items
+      : [];
+    sendSuccess(res, { clinics, favoriteClinicIds }, 'Favourites retrieved');
   }),
 };

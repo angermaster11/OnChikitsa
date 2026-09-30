@@ -7,6 +7,7 @@ import { runInTransaction } from '../../utils/transaction';
 import { verifyPaymentSignature, verifyWebhookSignature } from '../../config/razorpay';
 import type { AppointmentDoc } from '../appointments/appointment.model';
 import { appointmentRepository } from '../appointments/appointment.repository';
+import { nextAppointmentCode } from '../appointments/appointmentCode';
 import { type TransactionDoc } from './payment.model';
 import { paymentRepository, type TransactionListFilters } from './payment.repository';
 import { ProcessedWebhookEvent } from './webhookEvent.model';
@@ -63,13 +64,17 @@ async function confirmPaidOrder(
     if (payment.status === PAYMENT_STATUS.PAID) return { payment, appointment };
 
     if (appointment && appointment.status === APPOINTMENT_STATUS.PENDING_PAYMENT) {
-      const confirmed = await appointmentRepository.countConfirmedInSlot(
+      // Token is the clinic's per-DAY queue sequence (across all slots), assigned
+      // only now at confirmation so abandoned holds never leave gaps. The readable
+      // code is minted once here too (idempotent: this block is skipped once the
+      // payment is PAID, so verify + webhook can't double-assign).
+      const confirmed = await appointmentRepository.countConfirmedInDay(
         String(appointment.clinicId),
         appointment.date,
-        appointment.slotStart,
         session,
       );
       appointment.tokenNo = confirmed + 1;
+      appointment.appointmentCode = await nextAppointmentCode(appointment.date);
       appointment.status = APPOINTMENT_STATUS.BOOKED;
       appointment.holdExpiresAt = null;
       await appointment.save(session ? { session } : undefined);
@@ -283,7 +288,7 @@ export const paymentService = {
   /** Clinic: its own transactions (scoped by clinicId), newest first. */
   async listForClinic(
     clinicId: string,
-    filters: { status?: string; settlementStatus?: string },
+    filters: { status?: string; settlementStatus?: string; from?: Date; to?: Date },
     page?: number,
     limit?: number,
   ): Promise<{ items: TransactionDoc[]; pagination: PaginationMeta }> {
@@ -292,6 +297,8 @@ export const paymentService = {
       clinicId,
       status: filters.status,
       settlementStatus: filters.settlementStatus,
+      from: filters.from,
+      to: filters.to,
     });
     const { items, total } = await paymentRepository.list(filter, skip, l);
     return { items, pagination: buildPaginationMeta(p, l, total) };

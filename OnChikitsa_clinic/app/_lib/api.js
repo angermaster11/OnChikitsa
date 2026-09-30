@@ -125,6 +125,9 @@ export const earningsApi = {
     const qs = new URLSearchParams();
     if (params.status) qs.set('status', params.status);
     if (params.settlementStatus) qs.set('settlementStatus', params.settlementStatus);
+    // Inclusive createdAt range (ISO) for the today/month/year/custom-day filters.
+    if (params.from) qs.set('from', params.from);
+    if (params.to) qs.set('to', params.to);
     qs.set('page', String(params.page || 1));
     qs.set('limit', String(params.limit || 50));
     return request(`/clinic/earnings/payments?${qs.toString()}`);
@@ -164,6 +167,10 @@ export const appointmentApi = {
   /** PATCH /clinic/appointments/:id/status — advance workflow state. */
   updateStatus: async (id, status) =>
     request(`/clinic/appointments/${id}/status`, { method: 'PATCH', body: { status } }),
+  /** PATCH /clinic/appointments/:id/skip — push a waiting patient to the queue
+   *  tail (skipped=true) or undo it (false). Persisted, so the patient sees it too. */
+  skip: async (id, skipped = true) =>
+    request(`/clinic/appointments/${id}/skip`, { method: 'PATCH', body: { skipped } }),
 };
 
 export const supportApi = {

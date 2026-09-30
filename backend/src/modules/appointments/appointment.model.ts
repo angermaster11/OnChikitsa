@@ -28,9 +28,11 @@ export interface PatientSnapshot {
  * Appointment therefore stores the concrete slot it landed in as plain
  * date + "HH:MM" strings (server-local, single-region app) rather than a slot id.
  *
- * `tokenNo` is the patient's 1-based position within that specific slot (first
- * booker = token 1). A small clinic-name snapshot is kept so "my bookings" can
- * render without joining back to the clinic.
+ * `tokenNo` is the patient's 1-based position in the clinic's queue for the whole
+ * DAY (first confirmed booker = token 1), so it doubles as the day's queue
+ * sequence across every slot. `appointmentCode` is a separate human-readable,
+ * globally-unique reference for the booking. A small clinic-name snapshot is kept
+ * so "my bookings" can render without joining back to the clinic.
  */
 export interface AppointmentDoc extends Document<Types.ObjectId> {
   clinicId: Types.ObjectId;
@@ -38,7 +40,10 @@ export interface AppointmentDoc extends Document<Types.ObjectId> {
   date: string;      // "YYYY-MM-DD" (server-local)
   slotStart: string; // "HH:MM" 24-hour
   slotEnd: string;   // "HH:MM" 24-hour
-  tokenNo: number;   // 1-based position within the slot (0 while PENDING_PAYMENT — assigned at confirmation)
+  tokenNo: number;   // 1-based queue position for the whole day (0 while PENDING_PAYMENT — assigned at confirmation)
+  /** Human-readable, globally-unique booking reference (e.g. "OC-20260930-0007").
+   *  Assigned at confirmation alongside tokenNo; absent on a PENDING_PAYMENT hold. */
+  appointmentCode?: string | null;
   status: AppointmentStatus;
   patient: PatientSnapshot;
   reason?: string;
@@ -50,6 +55,10 @@ export interface AppointmentDoc extends Document<Types.ObjectId> {
   holdExpiresAt?: Date | null;
   cancelledAt?: Date | null;
   cancelledBy?: 'USER' | 'CLINIC' | null;
+  /** When the clinic last "skipped" this patient in the live queue: the booking
+   *  stays in the queue but sorts to the tail (latest skip = furthest back).
+   *  null = not skipped. Orthogonal to `status` (a skipped patient is still BOOKED). */
+  skippedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -71,7 +80,10 @@ const appointmentSchema = new Schema<AppointmentDoc>(
     date: { type: String, required: true }, // "YYYY-MM-DD"
     slotStart: { type: String, required: true }, // "HH:MM"
     slotEnd: { type: String, required: true },
-    tokenNo: { type: Number, required: true, min: 0 }, // 0 = unassigned (PENDING_PAYMENT hold)
+    tokenNo: { type: Number, required: true, min: 0 }, // 0 = unassigned (PENDING_PAYMENT hold); else 1-based day queue position
+    // No default: left ABSENT (not null) on a hold so the sparse/partial unique
+    // index below only indexes real, assigned codes — many missing fields never collide.
+    appointmentCode: { type: String },
     status: {
       type: String,
       enum: Object.values(APPOINTMENT_STATUS),
@@ -86,6 +98,7 @@ const appointmentSchema = new Schema<AppointmentDoc>(
     holdExpiresAt: { type: Date, default: null },
     cancelledAt: { type: Date, default: null },
     cancelledBy: { type: String, enum: ['USER', 'CLINIC'], default: null },
+    skippedAt: { type: Date, default: null },
   },
   {
     timestamps: true,
@@ -101,6 +114,12 @@ const appointmentSchema = new Schema<AppointmentDoc>(
 // Occupancy counting + a clinic's day view: all bookings for a clinic on a date,
 // ordered within a slot by token.
 appointmentSchema.index({ clinicId: 1, date: 1, slotStart: 1, tokenNo: 1 });
+// Globally-unique human-readable code. Partial (not sparse) so only docs that
+// actually carry a string code are indexed — holds (no code) never collide.
+appointmentSchema.index(
+  { appointmentCode: 1 },
+  { unique: true, partialFilterExpression: { appointmentCode: { $type: 'string' } } },
+);
 // "My bookings", newest first.
 appointmentSchema.index({ userId: 1, createdAt: -1 });
 // Sweep/occupancy of live PENDING_PAYMENT holds (bounded by holdExpiresAt).

@@ -103,3 +103,8 @@
   border: 1px solid #e6e2fb; box-shadow: 0 4px 14px rgba(20, 20, 45, 0.05);
 }
 .successBtn:active { transform: scale(0.97); }
+.successBtnAlt {
+  display: block; margin: 12px auto 0; border: 0; background: none; cursor: pointer;
+  color: #6c6c75; font: 700 13px var(--font-sans); text-decoration: underline; text-underline-offset: 2px;
+}
+.successBtnAlt:active { opacity: 0.6; }

@@ -12,6 +12,7 @@ import { CLINIC, NOTIFICATIONS } from '../_lib/data';
 import { tapLight } from '../_lib/haptic';
 
 const LINKS = [
+  { t: 'Patients', s: 'Patient records & history', Icon: Users, r: '/patients' },
   { t: 'Doctors', s: 'Team & specializations', Icon: Users, r: '/doctors' },
   { t: 'Services', s: 'Consultations & fees', Icon: Stethoscope, r: '/services' },
   { t: 'Schedule', s: 'Slots, holidays & leave', Icon: Calendar, r: '/schedule' },

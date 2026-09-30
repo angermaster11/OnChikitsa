@@ -36,12 +36,37 @@ function stamp(iso) {
   return `${date} · ${time}`;
 }
 
+// Period filter → an inclusive local createdAt range (ISO). 'All' (and an
+// un-picked custom 'Date') means no range. Today is the default.
+const PERIODS = ['Today', 'Date', 'Month', 'Year', 'All'];
+const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+const endOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+function periodRange(period, customDate) {
+  const now = new Date();
+  if (period === 'Today') return { from: startOfDay(now).toISOString(), to: endOfDay(now).toISOString() };
+  if (period === 'Month') return { from: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(), to: endOfDay(now).toISOString() };
+  if (period === 'Year') return { from: new Date(now.getFullYear(), 0, 1).toISOString(), to: endOfDay(now).toISOString() };
+  if (period === 'Date' && customDate) {
+    const [y, m, d] = customDate.split('-').map(Number);
+    const day = new Date(y, (m || 1) - 1, d || 1);
+    return { from: startOfDay(day).toISOString(), to: endOfDay(day).toISOString() };
+  }
+  return {}; // All, or Date before a day is picked
+}
+// Short label for the section header.
+const periodLabel = (period, customDate) => {
+  if (period === 'Date') return customDate ? new Date(customDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Pick a date';
+  return period === 'All' ? 'All time' : period;
+};
+
 export default function Payments() {
   const router = useRouter();
   const go = (r) => { tapLight(); router.push(r); };
 
   const [open, setOpen] = useState(false);
   const [fStatus, setFStatus] = useState('All');
+  const [fPeriod, setFPeriod] = useState('Today'); // date filter — Today by default
+  const [customDate, setCustomDate] = useState('');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -50,14 +75,15 @@ export default function Payments() {
     setLoading(true);
     setErr('');
     try {
-      const list = await earningsApi.listPayments({ status: FILTERS[fStatus], limit: 100 });
+      const { from, to } = periodRange(fPeriod, customDate);
+      const list = await earningsApi.listPayments({ status: FILTERS[fStatus], from, to, limit: 100 });
       setItems(Array.isArray(list) ? list : []);
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Could not load payments.');
     } finally {
       setLoading(false);
     }
-  }, [fStatus]);
+  }, [fStatus, fPeriod, customDate]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -89,7 +115,7 @@ export default function Payments() {
         <section className="section">
           <div className="section-head">
             <h2>{fStatus === 'All' ? 'All payments' : `${fStatus} payments`}</h2>
-            {!loading && <span style={{ fontSize: 12.5, color: 'var(--muted-fg)' }}>{items.length} total</span>}
+            {!loading && <span style={{ fontSize: 12.5, color: 'var(--muted-fg)' }}>{periodLabel(fPeriod, customDate)} · {items.length}</span>}
           </div>
         </section>
 
@@ -156,6 +182,20 @@ export default function Payments() {
 
       <Sheet open={open} onClose={() => setOpen(false)} title="Filter payments">
         <div className="stack" style={{ gap: 16 }}>
+          <div>
+            <div className="field-label" style={{ marginBottom: 8 }}>Period</div>
+            <Segmented options={PERIODS} value={fPeriod} onChange={(v) => setFPeriod(v)} />
+            {fPeriod === 'Date' && (
+              <input
+                type="date"
+                className="input"
+                style={{ marginTop: 10 }}
+                value={customDate}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setCustomDate(e.target.value)}
+              />
+            )}
+          </div>
           <div>
             <div className="field-label" style={{ marginBottom: 8 }}>Status</div>
             <Segmented

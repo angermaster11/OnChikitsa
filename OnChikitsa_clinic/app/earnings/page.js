@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowLeft, TrendingUp, Clock, CheckCircle,
+  TrendingUp, Clock, CheckCircle,
 } from '../_components/icons';
+import BottomNav from '../_components/BottomNav';
 import { tapLight } from '../_lib/haptic';
 import { earningsApi, ApiError } from '../_lib/api';
 import styles from './earnings.module.css';
@@ -72,9 +73,6 @@ export default function Earnings() {
   return (
     <main className={styles.root}>
       <header className={styles.top}>
-        <button className={styles.back} onClick={() => { tapLight(); router.back(); }} aria-label="Back">
-          <ArrowLeft size={22} />
-        </button>
         <div>
           <h1 className={styles.title}>Earnings</h1>
           <p className={styles.sub}>Your consultation share</p>
@@ -154,6 +152,7 @@ export default function Earnings() {
           </>
         )}
       </div>
+      <BottomNav active="earnings" />
     </main>
   );
 }

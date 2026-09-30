@@ -7,6 +7,9 @@ export interface TransactionListFilters {
   status?: string;
   settlementStatus?: string;
   search?: string;
+  /** Inclusive createdAt range (period filters: today / month / year / custom day). */
+  from?: Date;
+  to?: Date;
 }
 
 function escapeRegex(input: string): string {
@@ -28,6 +31,12 @@ export const paymentRepository = {
     }
     if (filters.status) query.status = filters.status;
     if (filters.settlementStatus) query['settlement.status'] = filters.settlementStatus;
+    if (filters.from || filters.to) {
+      const range: Record<string, Date> = {};
+      if (filters.from) range.$gte = filters.from;
+      if (filters.to) range.$lte = filters.to;
+      query.createdAt = range;
+    }
     if (filters.search) {
       const rx = new RegExp(escapeRegex(filters.search.trim()), 'i');
       query.$or = [

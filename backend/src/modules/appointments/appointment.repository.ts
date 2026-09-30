@@ -120,6 +120,27 @@ export const appointmentRepository = {
       .exec();
   },
 
+  /**
+   * Number of *confirmed* seats for a clinic across a whole DAY (all slots),
+   * excluding PENDING_PAYMENT holds. Used to assign a per-DAY sequential token so
+   * the clinic's queue is numbered 1..N across the whole day in booking order
+   * (abandoned holds leave no gaps). Mirrors countConfirmedInSlot without the
+   * per-slot narrowing.
+   */
+  countConfirmedInDay(
+    clinicId: string,
+    date: string,
+    session?: ClientSession | null,
+  ): Promise<number> {
+    return Appointment.countDocuments({
+      clinicId: new Types.ObjectId(clinicId),
+      date,
+      status: { $in: CONFIRMED_OCCUPYING },
+    })
+      .session(session ?? null)
+      .exec();
+  },
+
   /** Does this patient already hold a (non-cancelled, live) seat in this exact slot? */
   findUserSlot(
     userId: string,

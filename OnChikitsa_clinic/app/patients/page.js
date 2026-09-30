@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Screen from '../_components/Screen';
-import BottomNav from '../_components/BottomNav';
+import TopBar from '../_components/TopBar';
 import Avatar from '../_components/Avatar';
 import EmptyState from '../_components/EmptyState';
 import { Search, Users, ChevronRight, Phone, Clock } from '../_components/icons';
@@ -24,12 +24,8 @@ export default function PatientsPage() {
 
   return (
     <Screen>
-      <div className="content with-tabbar">
-        <div className="page-title">
-          <h1>Patients</h1>
-          <p>{PATIENTS.length} registered</p>
-        </div>
-
+      <TopBar title="Patients" subtitle={`${PATIENTS.length} registered`} />
+      <div className="content">
         <div className="search">
           <Search size={18} />
           <input
@@ -66,7 +62,6 @@ export default function PatientsPage() {
         )}
         <div style={{ height: 14 }} />
       </div>
-      <BottomNav active="patients" />
     </Screen>
   );
 }

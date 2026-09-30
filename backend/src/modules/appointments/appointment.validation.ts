@@ -61,7 +61,14 @@ export const updateAppointmentStatusSchema = z
   })
   .strict();
 
+/** Clinic-side skip toggle: push a still-waiting patient to the queue tail, or
+ *  undo it. Orthogonal to the status transition above. */
+export const skipAppointmentSchema = z
+  .object({ skipped: z.boolean() })
+  .strict();
+
 export type CreateBookingBody = z.infer<typeof createBookingSchema>;
 export type ListMyBookingsQuery = z.infer<typeof listMyBookingsQuerySchema>;
 export type ListClinicAppointmentsQuery = z.infer<typeof listClinicAppointmentsQuerySchema>;
 export type UpdateAppointmentStatusBody = z.infer<typeof updateAppointmentStatusSchema>;
+export type SkipAppointmentBody = z.infer<typeof skipAppointmentSchema>;

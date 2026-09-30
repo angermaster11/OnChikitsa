@@ -44,6 +44,8 @@ export interface UserDoc extends Document<Types.ObjectId> {
   notificationPermission: PermissionStatus;
   locationPermission: PermissionStatus;
   location?: UserLocation | null;
+  /** Clinics this patient has favourited (toggled from the app). */
+  favoriteClinics: Types.ObjectId[];
   status: UserStatus;
   lastLoginAt?: Date;
   bannedAt?: Date | null;
@@ -100,6 +102,10 @@ const userSchema = new Schema<UserDoc>(
         { _id: false },
       ),
       default: null,
+    },
+    favoriteClinics: {
+      type: [{ type: Schema.Types.ObjectId, ref: 'Clinic' }],
+      default: [],
     },
     status: {
       type: String,

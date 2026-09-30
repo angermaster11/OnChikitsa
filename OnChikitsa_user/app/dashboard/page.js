@@ -11,7 +11,7 @@ import { resolveRoute } from '../_lib/onboarding';
 import { flow } from '../_lib/flow';
 import { unreadCount } from '../_lib/notifications';
 import { getCurrentUser } from '../_lib/auth';
-import { clinicApi, ApiError } from '../_lib/api';
+import { clinicApi, favoriteApi, ApiError } from '../_lib/api';
 import { mapClinicCard } from '../_lib/clinicMap';
 import styles from './dashboard.module.css';
 
@@ -105,6 +105,22 @@ export default function Dashboard() {
     return () => { cancelled = true; };
   }, [checking, city]);
 
+  // Seed the hearts from the caller's saved favourites so a favourited clinic
+  // shows active on load. Refresh on refocus (favourites may change elsewhere).
+  useEffect(() => {
+    if (checking) return;
+    let cancelled = false;
+    const read = async () => {
+      try {
+        const { favoriteClinicIds } = await favoriteApi.listIds();
+        if (!cancelled) setFavs(Object.fromEntries((favoriteClinicIds || []).map((id) => [id, true])));
+      } catch { /* non-fatal — hearts just start empty */ }
+    };
+    read();
+    window.addEventListener('focus', read);
+    return () => { cancelled = true; window.removeEventListener('focus', read); };
+  }, [checking]);
+
   useEffect(() => {
     const sync = () => setOffline(!navigator.onLine);
     sync();
@@ -116,7 +132,18 @@ export default function Dashboard() {
     };
   }, []);
 
-  const toggleFav = (id) => setFavs((f) => ({ ...f, [id]: !f[id] }));
+  // Persisted favourite toggle: flip the heart immediately (optimistic), then sync
+  // with the backend; revert if the call fails.
+  const toggleFav = async (id) => {
+    const next = !favs[id];
+    setFavs((f) => ({ ...f, [id]: next }));
+    try {
+      if (next) await favoriteApi.add(id);
+      else await favoriteApi.remove(id);
+    } catch {
+      setFavs((f) => ({ ...f, [id]: !next }));
+    }
+  };
   const open = (id) => { flow.setClinicId(id); router.push('/clinic'); };
 
   const featured = clinics.slice(0, 6);
@@ -129,7 +156,9 @@ export default function Dashboard() {
     return (
       <div key={v.id} className={styles.card} role="button" tabIndex={0} onClick={() => open(v.id)}>
         <span className={`${styles.art} ${styles[v.g]}`}>
-          <Glyph size={54} className={styles.glyph} />
+          {v.banner
+            ? <img className={styles.artImg} src={v.banner} alt="" loading="lazy" />
+            : <Glyph size={54} className={styles.glyph} />}
           <span className={styles.badge}>{STATUS_LABEL[v.status] || 'Closed'}</span>
           <button
             className={`${styles.fav} ${favs[v.id] ? styles.on : ''}`}
@@ -212,7 +241,11 @@ export default function Dashboard() {
             const Glyph = GLYPHS[v.glyph] || Building;
             return (
               <div key={v.id} className={styles.wide} role="button" tabIndex={0} onClick={() => open(v.id)}>
-                <span className={`${styles.wideArt} ${styles[v.g]}`}><Glyph size={30} /></span>
+                <span className={`${styles.wideArt} ${styles[v.g]}`}>
+                  {v.logo || v.banner
+                    ? <img className={styles.wideImg} src={v.logo || v.banner} alt="" loading="lazy" />
+                    : <Glyph size={30} />}
+                </span>
                 <div className={styles.wideBody}>
                   <h3 className={styles.wideName}>{v.name}</h3>
                   <p className={styles.wideSub}>{v.cat} · {v.area}</p>

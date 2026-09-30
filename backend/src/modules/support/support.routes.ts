@@ -35,6 +35,12 @@ export const userSupportRoutes = Router();
 userSupportRoutes.use(firebaseAuth('USER'));
 userSupportRoutes.post('/', validate({ body: createTicketSchema }), supportController.create);
 userSupportRoutes.get('/', validate({ query: listTicketsQuerySchema }), supportController.listMine);
+userSupportRoutes.get('/:id', validate({ params: idParamSchema }), supportController.getMine);
+userSupportRoutes.post(
+  '/:id/respond',
+  validate({ params: idParamSchema, body: respondSchema }),
+  supportController.respondMine,
+);
 
 /** App-facing support for clinics — mounted at /api/v1/clinic/support. */
 export const clinicSupportRoutes = Router();

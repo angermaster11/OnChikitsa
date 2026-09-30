@@ -61,7 +61,7 @@ export const paymentController = {
     const q = req.query as unknown as ListClinicPaymentsQuery;
     const { items, pagination } = await paymentService.listForClinic(
       actor.id,
-      { status: q.status, settlementStatus: q.settlementStatus },
+      { status: q.status, settlementStatus: q.settlementStatus, from: q.from, to: q.to },
       q.page,
       q.limit,
     );

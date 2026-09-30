@@ -61,3 +61,9 @@ userAppRoutes.post(
 );
 userAppRoutes.get('/me', firebaseAuth('USER'), userController.me);
 userAppRoutes.patch('/me', firebaseAuth('USER'), validate({ body: updateProfileSchema }), userController.updateMe);
+
+// Favourite clinics (toggle + read). All scoped to the caller (Firebase USER).
+userAppRoutes.get('/favorites', firebaseAuth('USER'), userController.listFavorites);
+userAppRoutes.get('/favorites/ids', firebaseAuth('USER'), userController.favoriteIds);
+userAppRoutes.put('/favorites/:id', firebaseAuth('USER'), validate({ params: idParamSchema }), userController.addFavorite);
+userAppRoutes.delete('/favorites/:id', firebaseAuth('USER'), validate({ params: idParamSchema }), userController.removeFavorite);

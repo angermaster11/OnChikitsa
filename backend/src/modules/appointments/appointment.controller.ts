@@ -8,6 +8,7 @@ import type {
   ListMyBookingsQuery,
   ListClinicAppointmentsQuery,
   UpdateAppointmentStatusBody,
+  SkipAppointmentBody,
 } from './appointment.validation';
 
 function requireActor(req: Request) {
@@ -59,5 +60,12 @@ export const appointmentController = {
     const { status } = req.body as UpdateAppointmentStatusBody;
     const appt = await appointmentService.clinicUpdateStatus(actor.id, req.params.id, status);
     sendSuccess(res, appt, 'Appointment updated');
+  }),
+
+  skip: asyncHandler(async (req: Request, res: Response) => {
+    const actor = requireActor(req);
+    const { skipped } = req.body as SkipAppointmentBody;
+    const appt = await appointmentService.clinicSkip(actor.id, req.params.id, skipped);
+    sendSuccess(res, appt, skipped ? 'Patient skipped' : 'Skip undone');
   }),
 };

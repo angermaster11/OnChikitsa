@@ -36,7 +36,7 @@
   background: #fff; border: 1px solid #ececf0; border-radius: 20px;
   padding: 4px 18px 16px; box-shadow: 0 8px 22px rgba(20, 20, 45, 0.06);
 }
-.cardHead { display: flex; align-items: center; gap: 13px; padding: 15px 0 14px; }
+.cardHead { display: flex; align-items: flex-start; gap: 13px; padding: 15px 0 14px; }
 .logo {
   flex: 0 0 auto; width: 52px; height: 52px; border-radius: 14px;
   display: flex; align-items: center; justify-content: center;
@@ -132,6 +132,7 @@
 .pillArrived { background: #e7f7ec; color: #1a8a45; }
 .pillConsulting { background: #fdf0e0; color: #b5730a; }
 .pillPending { background: #fdf0e0; color: #b5730a; }
+.pillSkipped { background: #fdecec; color: #c0392b; }
 .tokenRow {
   display: flex; align-items: center; gap: 8px; margin-top: 2px;
   padding: 11px 14px; border-radius: 12px; background: #f2f0fe;
@@ -165,3 +166,54 @@
   padding: 12px; border-radius: 12px;
 }
 .payBtn:active { transform: scale(0.99); }
+
+/* Upcoming card v2: status is the hero, cancel is a small link up by it, plus a
+   readable booking-id caption and an expected-time row. */
+.headRight { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; flex: 0 0 auto; }
+.apptId { margin: 4px 0 0; font: 600 10.5px var(--font-sans); color: #9a9aa4; letter-spacing: 0.02em; }
+/* Prominent status pill (the card's focus). */
+.stPillLg { font: 800 12px var(--font-sans); padding: 7px 12px; }
+/* De-emphasised cancel: a small text link, not a big red button. */
+.cancelLink {
+  background: none; border: 0; cursor: pointer; color: #b0343a;
+  font: 700 11.5px var(--font-sans); padding: 0; text-decoration: underline; text-underline-offset: 2px;
+}
+.cancelLink:active { opacity: 0.6; }
+/* Subtle cancel action pinned to the card footer, divided off from the details so
+   the status pill stays the visual focus and cancel reads as a quiet secondary. */
+.cancelRow {
+  display: flex; justify-content: flex-end;
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid #f0f0f3;
+}
+/* Clinic-skipped notice: the patient is still in the queue, just pushed back. */
+.skipNote {
+  margin: 12px 0 0; padding: 11px 14px; border-radius: 12px;
+  background: #fdecec; color: #b0343a; font: 600 12.5px var(--font-sans); line-height: 1.4;
+}
+
+/* Expected consultation time — UI placeholder for now ("—" until logic lands). */
+.expectRow {
+  display: flex; align-items: center; gap: 8px; margin-top: 10px;
+  padding: 11px 14px; border-radius: 12px; background: #f7f7fa; border: 1px dashed #e0e0e8;
+}
+.expectRow svg { color: #8a8a93; flex: 0 0 auto; }
+.expectTxt { font: 700 12px var(--font-sans); letter-spacing: 0.04em; text-transform: uppercase; color: #8a8a93; }
+.expectVal { margin-left: auto; font: 800 14px var(--font-sans); color: #6c6c75; }
+
+/* Inline cancel confirmation (replaces the immediate-cancel button). */
+.confirmBox {
+  margin-top: 14px; padding: 13px 14px; border-radius: 14px;
+  background: #fdf3f3; border: 1px solid #f4d3d5;
+}
+.confirmQ { margin: 0; font: 700 13px var(--font-sans); color: #b0343a; }
+.confirmActions { display: flex; gap: 10px; margin-top: 11px; }
+.keepBtn {
+  flex: 1; border: 1.5px solid #dcdce3; background: #fff; color: #4a4a52; cursor: pointer;
+  font: 700 13px var(--font-sans); padding: 11px; border-radius: 11px;
+}
+.confirmCancelBtn {
+  flex: 1; border: 0; background: #d13438; color: #fff; cursor: pointer;
+  font: 700 13px var(--font-sans); padding: 11px; border-radius: 11px;
+}
+.keepBtn:disabled, .confirmCancelBtn:disabled { opacity: 0.55; cursor: default; }
+.keepBtn:not(:disabled):active, .confirmCancelBtn:not(:disabled):active { transform: scale(0.99); }

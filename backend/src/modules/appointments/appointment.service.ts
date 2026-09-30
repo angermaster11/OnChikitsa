@@ -27,6 +27,7 @@ import { paymentRepository } from '../payments/payment.repository';
 import { paymentService } from '../payments/payment.service';
 import type { TransactionDoc } from '../payments/payment.model';
 import { appointmentRepository } from './appointment.repository';
+import { nextAppointmentCode } from './appointmentCode';
 import type { AppointmentDoc } from './appointment.model';
 import type { CreateBookingBody } from './appointment.validation';
 
@@ -234,6 +235,11 @@ export const appointmentService = {
       const taken = await appointmentRepository.countInSlot(body.clinicId, body.date, body.slotStart, session);
       if (taken >= slot.capacity) throw new ConflictError(ERROR_CODES.SLOT_FULL, 'That time slot is fully booked');
 
+      // Token is the clinic's per-DAY queue sequence (across all slots), and the
+      // code is a readable globally-unique reference. This free/legacy path confirms
+      // immediately, so both are assigned here (the paid path assigns them at
+      // payment confirmation instead).
+      const dayConfirmed = await appointmentRepository.countConfirmedInDay(body.clinicId, body.date, session);
       return appointmentRepository.create(
         {
           clinicId: clinic._id,
@@ -241,7 +247,8 @@ export const appointmentService = {
           date: body.date,
           slotStart: body.slotStart,
           slotEnd: body.slotEnd,
-          tokenNo: taken + 1,
+          tokenNo: dayConfirmed + 1,
+          appointmentCode: await nextAppointmentCode(body.date),
           status: APPOINTMENT_STATUS.BOOKED,
           patient: body.patient,
           reason: body.reason,
@@ -547,6 +554,27 @@ export const appointmentService = {
         logger.error({ err, appointmentId }, 'Marking transaction refunded on clinic cancellation failed');
       }
     }
+    return appt;
+  },
+
+  /**
+   * Clinic-side skip toggle. A skipped patient stays in the queue (still BOOKED /
+   * ARRIVED) but sorts to the tail — `skippedAt = now` for a skip, `null` to undo.
+   * Only a still-waiting appointment can be skipped; terminal / in-consultation
+   * ones reject. Re-skipping just refreshes the timestamp so it drops to the end
+   * again.
+   */
+  async clinicSkip(clinicId: string, appointmentId: string, skipped: boolean): Promise<AppointmentDoc> {
+    const appt = await appointmentRepository.findById(appointmentId);
+    if (!appt || String(appt.clinicId) !== clinicId) {
+      throw new NotFoundError(ERROR_CODES.APPOINTMENT_NOT_FOUND, 'Appointment not found');
+    }
+    const waiting: AppointmentStatus[] = [APPOINTMENT_STATUS.BOOKED, APPOINTMENT_STATUS.ARRIVED];
+    if (!waiting.includes(appt.status)) {
+      throw new ConflictError(ERROR_CODES.CONFLICT, 'Only a waiting patient can be skipped');
+    }
+    appt.skippedAt = skipped ? new Date() : null;
+    await appt.save();
     return appt;
   },
 };
