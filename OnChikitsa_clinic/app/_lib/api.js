@@ -173,6 +173,11 @@ export const appointmentApi = {
     request(`/clinic/appointments/${id}/skip`, { method: 'PATCH', body: { skipped } }),
 };
 
+export const deviceApi = {
+  register: (token, platform) => api.post('/clinic/devices', { token, platform }),
+  unregister: (token) => api.post('/clinic/devices/remove', { token }),
+};
+
 export const supportApi = {
   /** POST /clinic/support — open a ticket (subject/message/category/priority/attachments). */
   create: async (payload) => request('/clinic/support', { method: 'POST', body: payload }),
@@ -235,3 +240,7 @@ export async function uploadToCloudinary(file, kind, onProgress) {
     xhr.send(form);
   });
 }
+
+export const legalApi = {
+  get: async () => request('/public/legal', { auth: false }),
+};

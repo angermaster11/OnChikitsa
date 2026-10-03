@@ -5,7 +5,7 @@ import { AUDIT_ACTIONS, type AuditAction } from '../../utils/auditActions';
 import { normalizeEmail } from '../../utils/normalize';
 import { resolvePagination } from '../../utils/pagination';
 import { buildPaginationMeta, type PaginationMeta } from '../../utils/response';
-import { resolvePermissions, PERMISSIONS, type Permission } from '../../rbac/permissions';
+import { resolvePermissions, ROLE_PERMISSIONS, PERMISSIONS, type Permission } from '../../rbac/permissions';
 import { auditService } from '../audit/audit.service';
 import { refreshTokenRepository } from '../auth/refreshToken.repository';
 import { passwordService } from '../auth/password.service';
@@ -60,6 +60,19 @@ function assertCan(actor: AuthActor, role: Role, op: 'CREATE' | 'UPDATE' | 'DISA
   if (!actor.permissions.includes(perm)) throw new ForbiddenError();
 }
 
+/**
+ * Grant-ceiling: an actor may never grant a capability it does not itself hold.
+ * Without this, anyone delegated ADMIN_CREATE/UPDATE could mint (or promote) an
+ * account carrying permissions far beyond their own — a privilege escalation. The
+ * check is against the actor's own resolved permission set.
+ */
+function assertWithinGrantCeiling(actor: AuthActor, perms: Permission[]): void {
+  const held = new Set(actor.permissions);
+  if (perms.some((p) => !held.has(p))) {
+    throw new ForbiddenError(ERROR_CODES.FORBIDDEN, 'You cannot grant a permission you do not hold yourself');
+  }
+}
+
 function auditAction(role: Role, op: 'CREATE' | 'UPDATE' | 'DISABLE'): AuditAction {
   const isSupport = role === ROLES.SUPPORT;
   if (op === 'CREATE') return isSupport ? AUDIT_ACTIONS.SUPPORT_CREATED : AUDIT_ACTIONS.ADMIN_CREATED;
@@ -68,8 +81,6 @@ function auditAction(role: Role, op: 'CREATE' | 'UPDATE' | 'DISABLE'): AuditActi
 }
 
 export { serialize as serializeAdmin };
-
-// PLACEHOLDER_APPEND
 
 export const adminService = {
   async list(
@@ -91,6 +102,8 @@ export const adminService = {
 
   async create(actor: AuthActor, body: CreateAdminBody, ctx: Ctx): Promise<SerializedAdmin> {
     assertCan(actor, body.role, 'CREATE');
+    // Can't mint an account holding capabilities the creator lacks.
+    assertWithinGrantCeiling(actor, resolvePermissions(body.role, body.permissions));
 
     const email = normalizeEmail(body.email);
     if (await adminRepository.findByEmail(email)) {
@@ -134,6 +147,20 @@ export const adminService = {
     // Permission is checked against BOTH the current and (any) new role.
     assertCan(actor, admin.role, 'UPDATE');
     if (body.role && body.role !== admin.role) assertCan(actor, body.role, 'UPDATE');
+
+    // You cannot escalate your OWN account (grant yourself a role/permissions, or
+    // flip your own status) — mirror the self-guard `disable` already has.
+    if (
+      String(admin._id) === actor.id &&
+      (body.role !== undefined || body.permissions !== undefined || body.status !== undefined)
+    ) {
+      throw new ForbiddenError(ERROR_CODES.FORBIDDEN, 'You cannot change your own role, permissions, or status');
+    }
+    // Grant-ceiling: can't assign capabilities (directly, or via a new role) the actor lacks.
+    if (body.permissions !== undefined) assertWithinGrantCeiling(actor, body.permissions);
+    if (body.role !== undefined && body.role !== admin.role) {
+      assertWithinGrantCeiling(actor, ROLE_PERMISSIONS[body.role]);
+    }
 
     let passwordChanged = false;
     if (body.name !== undefined) admin.name = body.name;

@@ -21,9 +21,13 @@ const envSchema = z.object({
   // projects sharing the same cluster (e.g. `rangamai`) so collections never
   // collide. Overrides any db in MONGODB_URI's path — see config/database.ts.
   MONGODB_DB_NAME: z.string().min(1).default('onchikitsa'),
+  // Connection-pool bounds PER PROCESS. Sized so (pool × instances) stays under
+  // the cluster's connection cap when running multiple replicas behind an LB.
+  MONGODB_MAX_POOL_SIZE: z.coerce.number().int().positive().default(50),
+  MONGODB_MIN_POOL_SIZE: z.coerce.number().int().nonnegative().default(5),
 
-  JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET must be at least 16 chars'),
-  JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET must be at least 16 chars'),
+  JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 chars'),
+  JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 chars'),
   ACCESS_TOKEN_EXPIRES_IN: z.string().default('15m'),
   REFRESH_TOKEN_EXPIRES_IN: z.string().default('7d'),
 
@@ -59,10 +63,20 @@ const envSchema = z.object({
   SUPER_ADMIN_NAME: z.string().default('Super Admin'),
 
   CORS_ORIGIN: z.string().default('*'),
+  // Express `trust proxy` setting. Default '1' = trust one proxy hop. Set to the
+  // REAL number of proxies in front of the app in production (e.g. '2'), or 'false'
+  // when there is no proxy, so a client can't spoof X-Forwarded-For to defeat the
+  // IP-keyed rate limiter. Accepts a number, 'true'/'false', or a subnet string.
+  TRUST_PROXY: z.string().default('1'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   MAX_LOGIN_ATTEMPTS: z.coerce.number().int().positive().default(5),
   LOGIN_LOCK_MINUTES: z.coerce.number().int().positive().default(15),
   BODY_LIMIT: z.string().default('1mb'),
+
+  // Optional Redis. When set, the rate limiter uses a shared Redis store so the
+  // limit is correct across multiple instances behind a load balancer. When unset
+  // (e.g. local dev), everything falls back to in-process state — nothing breaks.
+  REDIS_URL: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -89,6 +103,15 @@ const CLOUDINARY_CLOUD_NAME = raw.CLOUDINARY_CLOUD_NAME || cld.cloudName;
 const CLOUDINARY_API_KEY = raw.CLOUDINARY_API_KEY || cld.apiKey;
 const CLOUDINARY_API_SECRET = raw.CLOUDINARY_API_SECRET || cld.apiSecret;
 
+/** Parse TRUST_PROXY into the value Express `set('trust proxy', …)` expects. */
+function parseTrustProxy(v: string): boolean | number | string {
+  if (v === 'true') return true;
+  if (v === 'false') return false;
+  const n = Number(v);
+  if (Number.isInteger(n) && n >= 0) return n;
+  return v; // subnet / IP list passed through to Express
+}
+
 export const env = {
   ...raw,
   isProd: raw.NODE_ENV === 'production',
@@ -96,6 +119,7 @@ export const env = {
   // Firebase private keys are stored with escaped newlines in .env — restore them.
   FIREBASE_PRIVATE_KEY: raw.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
   corsOrigins: raw.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean),
+  trustProxy: parseTrustProxy(raw.TRUST_PROXY),
   firebaseConfigured: Boolean(
     raw.FIREBASE_PROJECT_ID && raw.FIREBASE_CLIENT_EMAIL && raw.FIREBASE_PRIVATE_KEY,
   ),
@@ -107,6 +131,8 @@ export const env = {
   // checked separately by the webhook route (a deployment may verify checkout
   // without yet wiring the webhook), so it is not part of this gate.
   razorpayConfigured: Boolean(raw.RAZORPAY_KEY_ID && raw.RAZORPAY_KEY_SECRET),
+  // Whether a shared Redis store is available for the rate limiter (multi-instance).
+  redisConfigured: Boolean(raw.REDIS_URL),
   // Absolute base the gateway + in-app browser use to reach our endpoints (webhook).
   // Prefer an explicit PUBLIC_BASE_URL, then the shared ngrok tunnel, then local.
   publicBaseUrl: (raw.PUBLIC_BASE_URL || raw.NGROK_URL || `http://localhost:${raw.PORT}`).replace(

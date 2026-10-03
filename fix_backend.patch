@@ -1,0 +1,23 @@
+--- backend/src/modules/payments/payment.service.ts
++++ backend/src/modules/payments/payment.service.ts
+@@ -5,6 +5,7 @@
+ import { resolvePagination } from '../../utils/pagination';
+ import { buildPaginationMeta, type PaginationMeta } from '../../utils/response';
+ import { runInTransaction } from '../../utils/transaction';
++import { Types } from 'mongoose';
+ import { verifyPaymentSignature, verifyWebhookSignature } from '../../config/razorpay';
+ import type { AppointmentDoc } from '../appointments/appointment.model';
+ import { appointmentRepository } from '../appointments/appointment.repository';
+@@ -140,6 +141,14 @@
+ export const paymentService = {
++  async confirmWalletPayment(paymentId: string): Promise<void> {
++    const payment = await paymentRepository.findById(paymentId);
++    if (!payment || !payment.razorpayOrderId) return;
++    await confirmPaidOrder(payment.razorpayOrderId, {
++      razorpayPaymentId: `wallet_txn_${new Types.ObjectId()}`,
++      razorpayStatus: 'captured',
++    });
++  },
++
+   /**
+    * Verify a checkout success handed back by the client, on behalf of the authed

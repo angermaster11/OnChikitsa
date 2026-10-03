@@ -75,10 +75,13 @@
 .status.wait { background: #eef0ff; color: #4a3fce; }
 .status .waitTxt { margin-left: auto; font-weight: 600; opacity: 0.85; }
 .pastCard {
-  display: flex; align-items: center; gap: 13px;
+  display: flex; align-items: center; gap: 13px; width: 100%; text-align: left;
+  font: inherit; cursor: pointer;
   background: #fff; border: 1px solid #ececf0; border-radius: 16px;
   padding: 13px; box-shadow: 0 5px 16px rgba(20, 20, 45, 0.04);
 }
+.pastCard:active { transform: scale(0.995); }
+.pastChev { flex: 0 0 auto; color: #c0c0c8; }
 .pastLogo {
   flex: 0 0 auto; width: 48px; height: 48px; border-radius: 13px;
   display: flex; align-items: center; justify-content: center;
@@ -171,6 +174,14 @@
    readable booking-id caption and an expected-time row. */
 .headRight { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; flex: 0 0 auto; }
 .apptId { margin: 4px 0 0; font: 600 10.5px var(--font-sans); color: #9a9aa4; letter-spacing: 0.02em; }
+/* Tappable, copyable appointment ID — inherits the surrounding text style. */
+.copyId {
+  display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+  border: 0; background: none; padding: 0; font: inherit; color: inherit; letter-spacing: inherit;
+  vertical-align: baseline;
+}
+.copyId svg { color: #6a5cf0; flex: 0 0 auto; }
+.copyId:active { opacity: 0.55; }
 /* Prominent status pill (the card's focus). */
 .stPillLg { font: 800 12px var(--font-sans); padding: 7px 12px; }
 /* De-emphasised cancel: a small text link, not a big red button. */
@@ -189,6 +200,11 @@
 .skipNote {
   margin: 12px 0 0; padding: 11px 14px; border-radius: 12px;
   background: #fdecec; color: #b0343a; font: 600 12.5px var(--font-sans); line-height: 1.4;
+}
+/* Free re-book window hint (token still valid). */
+.rebookNote {
+  margin: 12px 0 0; padding: 10px 14px; border-radius: 12px;
+  background: #e7f7ec; color: #1a8a45; font: 600 12px var(--font-sans); line-height: 1.4;
 }
 
 /* Expected consultation time — UI placeholder for now ("—" until logic lands). */
@@ -217,3 +233,48 @@
 }
 .keepBtn:disabled, .confirmCancelBtn:disabled { opacity: 0.55; cursor: default; }
 .keepBtn:not(:disabled):active, .confirmCancelBtn:not(:disabled):active { transform: scale(0.99); }
+
+/* Past-booking detail bottom sheet. */
+.sheetWrap { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; justify-content: flex-end; }
+.sheetBackdrop { position: absolute; inset: 0; border: 0; cursor: pointer; background: rgba(16, 16, 24, 0.42); animation: fadeIn 160ms ease; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.sheet {
+  position: relative; background: #fff; border-radius: 22px 22px 0 0;
+  padding: 10px 20px calc(20px + env(safe-area-inset-bottom));
+  box-shadow: 0 -10px 30px rgba(20, 20, 45, 0.18); animation: sheetUp 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  max-height: 86dvh; overflow-y: auto;
+}
+@keyframes sheetUp { from { transform: translateY(100%); } to { transform: none; } }
+.sheetGrip { display: block; width: 40px; height: 4px; border-radius: 999px; background: #e0e0e8; margin: 2px auto 14px; }
+.sheetHead { display: flex; align-items: flex-start; gap: 13px; padding-bottom: 14px; border-bottom: 1px solid #f0f0f3; }
+.sheetLogo {
+  flex: 0 0 auto; width: 52px; height: 52px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center; color: rgba(255, 255, 255, 0.95);
+}
+.sheetHeadBody { flex: 1; min-width: 0; }
+.sheetTitle { margin: 0; font: 800 18px var(--font-sans); color: #0e0e12; }
+.sheetSub { margin: 3px 0 0; font: 500 13px var(--font-sans); color: #6c6c75; }
+.sheetRows { margin: 6px 0 0; padding: 0; }
+.sheetRow { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 11px 0; border-bottom: 1px solid #f4f4f7; }
+.sheetKey { margin: 0; flex: 0 0 auto; font: 600 12.5px var(--font-sans); color: #9a9aa4; }
+.sheetVal { margin: 0; text-align: right; font: 700 13.5px var(--font-sans); color: #16161a; word-break: break-word; }
+.sheetClose {
+  width: 100%; margin-top: 16px; border: 1.5px solid #dcdce3; cursor: pointer;
+  background: #fff; color: #4a4a52; font: 700 14px var(--font-sans); padding: 13px; border-radius: 13px;
+}
+.sheetClose:active { transform: scale(0.99); }
+
+/* Rate-your-visit control (completed bookings) */
+.rate { margin-top: 16px; padding-top: 16px; border-top: 1px solid #ededf2; }
+.rateTitle { margin: 0 0 10px; font: 700 14px var(--font-sans); color: #0e0e12; }
+.rateStars { display: flex; gap: 6px; margin-bottom: 10px; }
+.rateStar { background: none; border: none; padding: 2px; cursor: pointer; line-height: 0; transition: transform 0.1s; }
+.rateStar:active { transform: scale(0.9); }
+.rateText {
+  width: 100%; min-height: 64px; box-sizing: border-box; resize: vertical;
+  border: 1.5px solid #e3e3e8; border-radius: 12px; padding: 10px 12px;
+  font: 500 14px var(--font-sans); color: #0e0e12; background: #fff;
+}
+.rateText:focus { outline: none; border-color: #8ab4ff; }
+.rateErr { margin: 6px 2px 0; color: #dc2626; font: 500 13px var(--font-sans); }
+.rateOk { margin: 6px 2px 0; color: #16a34a; font: 500 13px var(--font-sans); }

@@ -128,6 +128,7 @@ export interface User {
   locationPermission: PermissionStatus;
   location?: UserLocation | null;
   status: UserStatus;
+  walletBalancePaise?: number;
   lastLoginAt?: string;
   bannedAt?: string | null;
   banReason?: string | null;
@@ -179,6 +180,8 @@ export interface Clinic {
   slotConfiguration?: SlotConfiguration;
   status: ClinicStatus;
   consultationFee?: number;
+  /** Days a paid visit's token stays valid for a free re-book (0/absent = off). */
+  tokenValidityDays?: number;
   averageConsultationTime?: number;
   doctorsCount?: number;
   /** Platform's commission on the consultation fee (0–100). Null = use platform default. */

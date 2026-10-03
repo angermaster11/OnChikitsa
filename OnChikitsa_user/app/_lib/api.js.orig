@@ -1,0 +1,273 @@
+'use client';
+
+// Thin client for the OnChikitsa backend, authenticated with the caller's
+// Firebase ID token. Users never receive a backend JWT — the Firebase token is
+// verified per-request by the backend (firebaseAuth). Envelopes are unwrapped to
+// `data`; failures throw a typed ApiError so callers can branch on `.code`.
+import { getIdToken, signOut } from './auth';
+
+const BASE = (process.env.NEXT_PUBLIC_API_URL || '') + '/api/v1';
+
+export class ApiError extends Error {
+  constructor(code, message, status) {
+    super(message || code || 'Request failed');
+    this.name = 'ApiError';
+    this.code = code;
+    this.status = status;
+  }
+  /** The post-OTP "account doesn't exist yet" signal from GET /user/me. */
+  get userNotFound() {
+    return this.code === 'USER_NOT_FOUND';
+  }
+}
+
+async function request(path, { method = 'GET', body, auth = true, _retry = false } = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true',
+  };
+  if (auth) {
+    // Force a fresh token on a retry — the previous one was rejected (401).
+    const token = await getIdToken(_retry === true);
+    if (!token) throw new ApiError('NO_SESSION', 'You are not signed in.', 401);
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  let res;
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), 10000);
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new ApiError('NETWORK_TIMEOUT', 'Request timed out — please check your connection.', 0);
+    }
+    throw new ApiError('NETWORK', 'Network error — please check your connection.', 0);
+  } finally {
+    clearTimeout(id);
+  }
+
+  // A 401 on an authenticated call means Firebase's token was rejected (revoked, or
+  // clock skew). Retry ONCE with a force-refreshed token; if it still fails the
+  // session is dead — sign out and bounce to /welcome so the user can re-auth
+  // instead of being stuck on a broken protected screen.
+  if (res.status === 401 && auth) {
+    if (!_retry) return request(path, { method, body, auth, _retry: true });
+    await endDeadSession();
+    throw new ApiError('SESSION_EXPIRED', 'Your session has expired. Please sign in again.', 401);
+  }
+
+  let json = null;
+  try {
+    json = await res.json();
+  } catch {
+    /* non-JSON response handled below */
+  }
+
+  if (!res.ok || !json || json.success === false) {
+    const err = (json && json.error) || {};
+    throw new ApiError(err.code || 'ERROR', err.message || `Request failed (${res.status})`, res.status);
+  }
+  return json.data;
+}
+
+/** Tear down a dead session and return the user to the welcome screen. */
+async function endDeadSession() {
+  try { await signOut(); } catch { /* ignore */ }
+  invalidateMe();
+  if (typeof window !== 'undefined') window.location.assign('/welcome');
+}
+
+// Short-lived in-memory cache for GET /user/me. Every protected screen's routing
+// guard calls resolveRoute() → getMe(), so navigating dashboard → profile →
+// account would otherwise fire three separate DB reads within a second. A tiny
+// TTL collapses those into one round-trip; writes refresh it, sign-out clears it.
+let _meCache = null; // { at: number, data }
+const ME_TTL_MS = 10000;
+
+/** Drop the cached profile (call on sign-out / account switch). */
+export function invalidateMe() {
+  _meCache = null;
+}
+
+export const userApi = {
+  /**
+   * GET /user/me — profile, or 401 USER_NOT_FOUND if no account exists.
+   * Served from the TTL cache unless `force` is true. Errors are never cached.
+   */
+  getMe: async (force = false) => {
+    if (!force && _meCache && Date.now() - _meCache.at < ME_TTL_MS) return _meCache.data;
+    const data = await request('/user/me');
+    _meCache = { at: Date.now(), data };
+    return data;
+  },
+  /** POST /user/register — create the profile after phone verification. */
+  register: async (payload) => {
+    const data = await request('/user/register', { method: 'POST', body: payload });
+    _meCache = null; // force a fresh read on the next guard
+    return data;
+  },
+  /** PATCH /user/me — enrich demographics / mirror onboarding + permissions. */
+  updateMe: async (payload) => {
+    const data = await request('/user/me', { method: 'PATCH', body: payload });
+    _meCache = { at: Date.now(), data }; // PATCH returns the updated doc
+    return data;
+  },
+  /** GET /user/wallet — returns { balancePaise, balanceRupees } */
+  getWallet: () => request('/user/wallet'),
+  /** GET /user/wallet/transactions — paginated wallet history */
+  getWalletTransactions: ({ page = 1, limit = 20 } = {}) =>
+    request(`/user/wallet/transactions?page=${page}&limit=${limit}`),
+};
+
+export const faqApi = {
+  /**
+   * GET /user/faqs — the active FAQs shown on the Support screen.
+   * Returns an array of `{ _id, question, answer, order }`, already sorted
+   * by the admin-defined order. Curated entirely from the admin panel.
+   */
+  list: () => request('/user/faqs'),
+};
+
+export const supportApi = {
+  /**
+   * POST /user/support — raise a support query. The backend stamps the
+   * raising user from the Firebase token; callers pass only subject + message.
+   * The new ticket then surfaces in the admin panel's Support section.
+   */
+  create: (payload) => request('/user/support', { method: 'POST', body: payload }),
+  /** GET /user/support — the caller's own previously-raised tickets (paginated → items array). */
+  listMine: () => request('/user/support'),
+  /** GET /user/support/:id — one ticket: subject + opening message + responses[] thread. */
+  get: (id) => request(`/user/support/${id}`),
+  /** POST /user/support/:id/respond — append a reply to the caller's own ticket thread. */
+  respond: (id, message) => request(`/user/support/${id}/respond`, { method: 'POST', body: { message } }),
+};
+
+export const favoriteApi = {
+  /** GET /user/favorites/ids — just the caller's favourite clinic ids (cheap; seeds hearts). */
+  listIds: () => request('/user/favorites/ids'),
+  /** GET /user/favorites — the caller's favourite clinics as enriched cards + their ids. */
+  list: () => request('/user/favorites'),
+  /** PUT /user/favorites/:clinicId — add to favourites. Returns { favoriteClinicIds }. */
+  add: (clinicId) => {
+    invalidateMe(); // favourites live on the user doc; drop the stale /me cache
+    return request(`/user/favorites/${clinicId}`, { method: 'PUT' });
+  },
+  /** DELETE /user/favorites/:clinicId — remove from favourites. Returns { favoriteClinicIds }. */
+  remove: (clinicId) => {
+    invalidateMe();
+    return request(`/user/favorites/${clinicId}`, { method: 'DELETE' });
+  },
+};
+
+export const clinicApi = {
+  /**
+   * GET /user/clinics — the patient-facing clinic directory. Each item is a full
+   * clinic doc enriched by the backend with `doctorsCount`, `seatsToday` and a
+   * lowercase `slotStatus` ('active' | 'booked' | 'closed') for today. We pull a
+   * generous page and let the Explore screen filter/search client-side.
+   */
+  list: (params = {}) => {
+    const qs = new URLSearchParams();
+    if (params.search) qs.set('search', params.search);
+    if (params.specialty) qs.set('specialty', params.specialty);
+    if (params.city) qs.set('city', params.city);
+    qs.set('limit', String(params.limit || 100));
+    return request(`/user/clinics?${qs.toString()}`);
+  },
+  /** GET /user/clinics/:id — one clinic with its active doctors + today's summary. */
+  get: (id) => request(`/user/clinics/${id}`),
+  /**
+   * GET /user/clinics/:id/slots?date=YYYY-MM-DD — the slot-picker feed for a date.
+   * Returns `{ open, reason, slots:[{start,end,capacity,booked,available,past}],
+   * advanceBookingDays, sameDayBooking, ... }`.
+   */
+  slots: (id, date) => request(`/user/clinics/${id}/slots?date=${encodeURIComponent(date)}`),
+};
+
+export const bookingApi = {
+  /**
+   * POST /user/bookings — reserve one slot. Payload:
+   * `{ clinicId, date, slotStart, slotEnd, patient:{name,phone,age?,gender?}, reason? }`.
+   * Returns the created appointment (with its `tokenNo`).
+   */
+  create: (payload) => request('/user/bookings', { method: 'POST', body: payload }),
+  /** GET /user/bookings?scope= — the caller's own bookings (upcoming | past | all). */
+  listMine: (scope = 'all') => request(`/user/bookings?scope=${scope}&limit=100`),
+  /** POST /user/bookings/:id/cancel — cancel a still-booked appointment. */
+  cancel: (id) => request(`/user/bookings/${id}/cancel`, { method: 'POST' }),
+  /**
+   * POST /user/bookings/rebook/lookup — confirm an existing appointment ID and
+   * report whether a free re-book is allowed. Body `{ appointmentCode, clinicId }`.
+   * Returns `{ patient, clinicName, originalDate, tokenValidUntil, eligible,
+   * ineligibleReason }`.
+   */
+  rebookLookup: (payload) => request('/user/bookings/rebook/lookup', { method: 'POST', body: payload }),
+  /**
+   * POST /user/bookings/rebook — free (₹0) re-book using a still-valid token. Body
+   * `{ appointmentCode, clinicId, date, slotStart, slotEnd }`. Returns the new
+   * appointment (with its `tokenNo`). No payment.
+   */
+  rebook: (payload) => request('/user/bookings/rebook', { method: 'POST', body: payload }),
+};
+
+export const paymentApi = {
+  /**
+   * POST /user/payments/order — Phase A of payment-first booking. Validates the
+   * slot, reserves it with a short-lived PENDING_PAYMENT hold, creates the Razorpay
+   * order, and returns the checkout params + full price breakdown. Payload matches
+   * bookingApi.create:
+   * `{ clinicId, date, slotStart, slotEnd, patient:{name,phone,age?,gender?}, reason? }`.
+   *
+   * Every payment is collected through Razorpay into the platform's account. Returns
+   * `{ appointmentId, paymentId, amountPaise, currency, breakdown, holdExpiresAt,
+   *    clinic:{id,name}, razorpay:{ keyId, orderId, amountPaise, currency } }`
+   *  → open Razorpay Checkout with `razorpay` (native RazorpayNative plugin on Android,
+   *    or checkout.js on web), then POST /verify the signed success and poll status(orderId).
+   */
+  createOrder: (payload) => request('/user/payments/order', { method: 'POST', body: payload }),
+  /**
+   * POST /user/payments/verify — confirm a checkout success handed back by the SDK.
+   * Body `{ razorpayOrderId, razorpayPaymentId, razorpaySignature }`; the backend
+   * checks `HMAC_SHA256(order_id|payment_id) === signature` before confirming the
+   * booking. Returns `{ status:'PAID', appointmentId }`. Idempotent with the webhook.
+   */
+  verifyPayment: (payload) => request('/user/payments/verify', { method: 'POST', body: payload }),
+  /**
+   * GET /user/payments/status/:orderId — Phase B poll while checkout runs / after it
+   * returns. Returns `{ orderId, status, razorpayStatus, appointmentId, appointment }`;
+   * `status` is CREATED | PAID | FAILED | REFUNDED, and once PAID the confirmed
+   * `appointment` (with its token) is included. This is the resilient backstop to the
+   * direct /verify call — the webhook may confirm the booking even if the client drops.
+   */
+  status: (orderId) => request(`/user/payments/status/${orderId}`),
+};
+
+export const reviewApi = {
+  /**
+   * POST /user/bookings/:id/review — rate a COMPLETED appointment (create or edit the
+   * caller's own review). Body `{ rating: 1..5, comment? }`. Returns the saved review
+   * `{ id, rating, comment, createdAt }` (never any reviewer identity).
+   */
+  submit: (appointmentId, { rating, comment }) =>
+    request(`/user/bookings/${appointmentId}/review`, { method: 'POST', body: { rating, comment } }),
+  /** GET /user/bookings/:id/review — the caller's own review for an appointment (prefill), or null. */
+  mine: (appointmentId) => request(`/user/bookings/${appointmentId}/review`),
+  /**
+   * GET /user/clinics/:id/reviews — a clinic's anonymous reviews (paginated → items array
+   * of `{ rating, comment, createdAt }`). The clinic's `ratingAvg`/`ratingCount` ride on
+   * the clinic doc from clinicApi.get, so no extra call is needed for the badge.
+   */
+  listForClinic: (clinicId, { page = 1, limit = 20 } = {}) =>
+    request(`/user/clinics/${clinicId}/reviews?page=${page}&limit=${limit}`),
+};
+
+export const legalApi = {
+  get: async () => request('/public/legal', { auth: false }),
+};

@@ -6,6 +6,7 @@ jest.mock('../../src/middleware/rateLimiter', () => ({
 import request from 'supertest';
 import { createApp } from '../../src/app';
 import { ROLES } from '../../src/utils/constants';
+import { PERMISSIONS } from '../../src/rbac/permissions';
 import { createStaff, loginRequest, accessTokenFor, auth } from '../helpers';
 
 const app = createApp();
@@ -90,5 +91,58 @@ describe('Staff management (SUPER_ADMIN)', () => {
     expect(res.body.pagination.limit).toBe(10);
     expect(res.body.pagination.page).toBe(1);
     expect(typeof res.body.pagination.total).toBe('number');
+  });
+});
+
+describe('Staff management — privilege-escalation guards (delegated ADMIN)', () => {
+  // A least-privilege admin: can manage admins, but holds neither WALLET_SETTLE nor USER_DELETE.
+  async function restrictedAdminToken() {
+    await createStaff({
+      role: ROLES.ADMIN,
+      email: 'limited@test.local',
+      permissions: [PERMISSIONS.ADMIN_CREATE, PERMISSIONS.ADMIN_UPDATE, PERMISSIONS.USER_VIEW, PERMISSIONS.SUPPORT_CREATE],
+    });
+    const login = await loginRequest(app, 'limited@test.local', 'Password123');
+    return { token: login.body.data.accessToken as string, id: login.body.data.admin.id as string };
+  }
+
+  it('blocks granting a permission the creator does not hold (grant-ceiling, 403)', async () => {
+    const { token } = await restrictedAdminToken();
+    const res = await request(app)
+      .post('/api/v1/admin/admins')
+      .set(auth(token))
+      .send({
+        name: 'Escalated',
+        email: 'escalated@test.local',
+        role: ROLES.ADMIN,
+        password: 'Password123',
+        permissions: [PERMISSIONS.WALLET_SETTLE, PERMISSIONS.USER_DELETE],
+      });
+    expect(res.status).toBe(403);
+  });
+
+  it('blocks an actor changing their OWN permissions (self-guard, 403)', async () => {
+    const { token, id } = await restrictedAdminToken();
+    const res = await request(app)
+      .patch(`/api/v1/admin/admins/${id}`)
+      .set(auth(token))
+      .send({ permissions: [PERMISSIONS.WALLET_SETTLE, PERMISSIONS.USER_DELETE] });
+    expect(res.status).toBe(403);
+  });
+
+  it('allows a grant that stays within the actor’s own ceiling (201)', async () => {
+    const { token } = await restrictedAdminToken();
+    const res = await request(app)
+      .post('/api/v1/admin/admins')
+      .set(auth(token))
+      .send({
+        name: 'Within Ceiling',
+        email: 'within@test.local',
+        role: ROLES.SUPPORT,
+        password: 'Password123',
+        permissions: [PERMISSIONS.USER_VIEW],
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.data.permissions).toEqual([PERMISSIONS.USER_VIEW]);
   });
 });

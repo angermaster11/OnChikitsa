@@ -1,0 +1,241 @@
+'use client';
+
+// Thin client for the OnChikitsa backend, authenticated with the clinic's
+// Firebase ID token. Clinics never receive a backend JWT — the Firebase token is
+// verified per-request by the backend (firebaseAuth). Envelopes are unwrapped to
+// `data`; failures throw a typed ApiError so callers can branch on `.code`.
+import { getIdToken } from './auth';
+
+const BASE = (process.env.NEXT_PUBLIC_API_URL || '') + '/api/v1';
+
+export class ApiError extends Error {
+  constructor(code, message, status) {
+    super(message || code || 'Request failed');
+    this.name = 'ApiError';
+    this.code = code;
+    this.status = status;
+  }
+  /** The post-OTP "clinic account doesn't exist yet" signal from GET /clinic/me. */
+  get clinicNotFound() {
+    return this.code === 'CLINIC_NOT_FOUND';
+  }
+}
+
+async function request(path, { method = 'GET', body, auth = true } = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true',
+  };
+  if (auth) {
+    const token = await getIdToken();
+    if (!token) throw new ApiError('NO_SESSION', 'You are not signed in.', 401);
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  let res;
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), 15000);
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new ApiError('NETWORK_TIMEOUT', 'Request timed out — please check your connection.', 0);
+    }
+    throw new ApiError('NETWORK', 'Network error — please check your connection.', 0);
+  } finally {
+    clearTimeout(id);
+  }
+  let json = null;
+  try {
+    json = await res.json();
+  } catch {
+    /* non-JSON response handled below */
+  }
+
+  if (!res.ok || !json || json.success === false) {
+    const err = (json && json.error) || {};
+    throw new ApiError(err.code || 'ERROR', err.message || `Request failed (${res.status})`, res.status);
+  }
+  return json.data;
+}
+// Short-lived in-memory cache for GET /clinic/me. Every protected screen's guard
+// calls it, so navigating dashboard → settings → profile would otherwise fire
+// several DB reads within a second. A tiny TTL collapses those into one
+// round-trip; writes refresh it, sign-out clears it.
+let _meCache = null; // { at: number, data }
+const ME_TTL_MS = 10000;
+
+/** Drop the cached profile (call on sign-out / account switch). */
+export function invalidateMe() {
+  _meCache = null;
+}
+
+export const clinicApi = {
+  /**
+   * GET /clinic/me — clinic profile, or 401 CLINIC_NOT_FOUND if no account
+   * exists yet (post-OTP, pre-registration). Served from the TTL cache unless
+   * `force` is true. Errors are never cached.
+   */
+  getMe: async (force = false) => {
+    if (!force && _meCache && Date.now() - _meCache.at < ME_TTL_MS) return _meCache.data;
+    const data = await request('/clinic/me');
+    _meCache = { at: Date.now(), data };
+    return data;
+  },
+  /** POST /clinic/register — create the clinic profile after phone verification. */
+  register: async (payload) => {
+    const data = await request('/clinic/register', { method: 'POST', body: payload });
+    _meCache = { at: Date.now(), data }; // the created doc is the fresh profile
+    return data;
+  },
+  /** PATCH /clinic/me — edit profile fields (settings / photo urls / status). */
+  updateMe: async (payload) => {
+    const data = await request('/clinic/me', { method: 'PATCH', body: payload });
+    _meCache = { at: Date.now(), data }; // PATCH returns the updated doc
+    return data;
+  },
+};
+
+export const earningsApi = {
+  /**
+   * GET /clinic/earnings — settlement summary for this clinic:
+   * `{ clinicPayablePaise, settledPaise, pendingPaise, paidCount, currency }`.
+   * The platform collects every payment through Razorpay and holds the funds; this is
+   * the clinic's 90% share of all PAID bookings, split into what the admin has
+   * already settled (`settledPaise`) vs what is still pending settlement
+   * (`pendingPaise`). `clinicPayablePaise` is the total earned (pending + settled).
+   */
+  getSummary: () => request('/clinic/earnings'),
+  /**
+   * GET /clinic/earnings/payments — this clinic's own transactions, newest first.
+   * The envelope's paginated `data` is the items array (pagination is a sibling),
+   * so this resolves to the array directly. Each item carries the clinic's share
+   * in `breakdown.clinicAmountPaise` and its `settlement.status`
+   * ('PENDING' | 'PAID'). `status` filters by payment status server-side
+   * ('CREATED' | 'PAID' | 'FAILED' | 'REFUNDED'); `settlementStatus` filters by
+   * settlement. There is no clinic-scoped per-payment endpoint, so the detail
+   * screen resolves an id from this list.
+   */
+  listPayments: (params = {}) => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set('status', params.status);
+    if (params.settlementStatus) qs.set('settlementStatus', params.settlementStatus);
+    // Inclusive createdAt range (ISO) for the today/month/year/custom-day filters.
+    if (params.from) qs.set('from', params.from);
+    if (params.to) qs.set('to', params.to);
+    qs.set('page', String(params.page || 1));
+    qs.set('limit', String(params.limit || 50));
+    return request(`/clinic/earnings/payments?${qs.toString()}`);
+  },
+};
+
+export const doctorApi = {
+  /** GET /clinic/doctors — this clinic's doctors (returns the items array). */
+  list: async () => request('/clinic/doctors?limit=100'),
+  /** POST /clinic/doctors — add a doctor (photo optional). */
+  create: async (payload) => request('/clinic/doctors', { method: 'POST', body: payload }),
+  /** PATCH /clinic/doctors/:id — edit a doctor. */
+  update: async (id, payload) => request(`/clinic/doctors/${id}`, { method: 'PATCH', body: payload }),
+  /** DELETE /clinic/doctors/:id — soft-delete a doctor. */
+  remove: async (id) => request(`/clinic/doctors/${id}`, { method: 'DELETE' }),
+};
+
+export const appointmentApi = {
+  /**
+   * GET /clinic/appointments — this clinic's appointments, scoped to the token's
+   * clinic. `date` ("YYYY-MM-DD") narrows to one day; `status` filters server-side
+   * (single value). Returns the raw `{ items, pagination }`-less items array — the
+   * envelope's paginated `data` is the items list. We fetch a whole day at once
+   * (limit 100) and group/filter client-side, so callers rarely pass `status`.
+   */
+  list: async ({ date, status, page, limit = 100 } = {}) => {
+    const qs = new URLSearchParams();
+    if (date) qs.set('date', date);
+    if (status) qs.set('status', status);
+    if (page) qs.set('page', String(page));
+    if (limit) qs.set('limit', String(limit));
+    const q = qs.toString();
+    return request(`/clinic/appointments${q ? `?${q}` : ''}`);
+  },
+  /** GET /clinic/appointments/:id — one appointment (404 if not this clinic's). */
+  get: async (id) => request(`/clinic/appointments/${id}`),
+  /** PATCH /clinic/appointments/:id/status — advance workflow state. */
+  updateStatus: async (id, status) =>
+    request(`/clinic/appointments/${id}/status`, { method: 'PATCH', body: { status } }),
+  /** PATCH /clinic/appointments/:id/skip — push a waiting patient to the queue
+   *  tail (skipped=true) or undo it (false). Persisted, so the patient sees it too. */
+  skip: async (id, skipped = true) =>
+    request(`/clinic/appointments/${id}/skip`, { method: 'PATCH', body: { skipped } }),
+};
+
+export const supportApi = {
+  /** POST /clinic/support — open a ticket (subject/message/category/priority/attachments). */
+  create: async (payload) => request('/clinic/support', { method: 'POST', body: payload }),
+  /** GET /clinic/support — this clinic's tickets (returns the items array). */
+  listMine: async () => request('/clinic/support?limit=100'),
+  /** GET /clinic/support/:id — one of this clinic's tickets (404 if not ours). */
+  get: async (id) => request(`/clinic/support/${id}`),
+  /** POST /clinic/support/:id/respond — append a reply to the thread. */
+  respond: async (id, message) =>
+    request(`/clinic/support/${id}/respond`, { method: 'POST', body: { message } }),
+};
+/**
+ * Backend-signed direct upload to Cloudinary with a real progress bar.
+ *
+ * 1. Ask our backend to sign the upload (`POST /clinic/uploads/signature`). The
+ *    API secret stays server-side; we receive `{ cloudName, apiKey, timestamp,
+ *    signature, folder, uploadUrl }`. The folder is derived from the clinic id,
+ *    so this REQUIRES an existing clinic account — during first-time
+ *    registration, call this only AFTER clinicApi.register() has succeeded.
+ * 2. Upload the file straight to Cloudinary via XHR so `upload.onprogress` can
+ *    drive a progress indicator. FormData must contain EXACTLY the signed params
+ *    (file, api_key, timestamp, signature, folder) or the signature won't match.
+ *
+ * @param {File|Blob} file      the image to upload
+ * @param {'logo'|'banner'|'doctor'|'ticket'} kind  asset kind (scopes the folder)
+ * @param {(pct:number)=>void} [onProgress] 0..100 upload percentage
+ * @returns {Promise<string>} the Cloudinary secure_url
+ */
+export async function uploadToCloudinary(file, kind, onProgress) {
+  const sig = await request('/clinic/uploads/signature', { method: 'POST', body: { kind } });
+  return new Promise((resolve, reject) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('api_key', sig.apiKey);
+    form.append('timestamp', String(sig.timestamp));
+    form.append('signature', sig.signature);
+    form.append('folder', sig.folder);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', sig.uploadUrl);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && typeof onProgress === 'function') {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+    xhr.onload = () => {
+      let res = null;
+      try { res = JSON.parse(xhr.responseText); } catch { /* handled below */ }
+      if (xhr.status >= 200 && xhr.status < 300 && res && res.secure_url) {
+        if (typeof onProgress === 'function') onProgress(100);
+        resolve(res.secure_url);
+      } else {
+        const msg = (res && res.error && res.error.message) || 'Upload failed';
+        reject(new ApiError('UPLOAD_FAILED', msg, xhr.status));
+      }
+    };
+    xhr.onerror = () => reject(new ApiError('UPLOAD_FAILED', 'Upload failed — please check your connection.', 0));
+    xhr.ontimeout = () => reject(new ApiError('UPLOAD_TIMEOUT', 'Upload timed out — please try again.', 0));
+    xhr.timeout = 60000;
+    xhr.send(form);
+  });
+}
+
+export const legalApi = {
+  get: async () => request('/public/legal', { auth: false }),
+};

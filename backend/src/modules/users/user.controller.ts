@@ -5,6 +5,7 @@ import { UnauthorizedError } from '../../utils/errors';
 import { getClientIp, getUserAgent } from '../../utils/http';
 import { userService } from './user.service';
 import { clinicService } from '../clinics/clinic.service';
+import { notificationService } from '../notifications/notification.service';
 import type { ListUsersQuery, AdminUpdateUserBody, BanBody, RegisterUserBody, UpdateProfileBody } from './user.validation';
 
 function ctx(req: Request) {
@@ -57,6 +58,29 @@ export const userController = {
     sendSuccess(res, user, 'User deleted');
   }),
 
+  fundWallet: asyncHandler(async (req: Request, res: Response) => {
+    const actor = requireActor(req);
+    const { amountPaise, message } = req.body as { amountPaise: number; message?: string };
+    const result = await userService.fundWallet(actor, req.params.id, amountPaise, message, ctx(req));
+    
+    // Send notification
+    const notificationMessage = message || `Your wallet has been credited with ₹${amountPaise / 100}. Use it on your next booking!`;
+    await notificationService.notifyUser(req.params.id, {
+      type: 'admin',
+      title: 'Wallet Update',
+      body: notificationMessage,
+    });
+    
+    sendSuccess(res, result, 'Wallet funded');
+  }),
+
+  debitWallet: asyncHandler(async (req: Request, res: Response) => {
+    const actor = requireActor(req);
+    const { amountPaise, message } = req.body as { amountPaise: number; message?: string };
+    const result = await userService.debitWallet(actor, req.params.id, amountPaise, message, ctx(req));
+    sendSuccess(res, result, 'Wallet debited');
+  }),
+
   // ---- App-facing (Firebase) ----
   register: asyncHandler(async (req: Request, res: Response) => {
     const actor = requireActor(req);
@@ -74,6 +98,20 @@ export const userController = {
     const actor = requireActor(req);
     const user = await userService.updateSelf(actor.id, req.body as UpdateProfileBody);
     sendSuccess(res, user, 'Profile updated');
+  }),
+
+  getWallet: asyncHandler(async (req: Request, res: Response) => {
+    const actor = requireActor(req);
+    const user = await userService.getById(actor.id);
+    const balancePaise = user.walletBalancePaise ?? 0;
+    sendSuccess(res, { balancePaise, balanceRupees: balancePaise / 100 }, 'Wallet retrieved');
+  }),
+
+  getWalletTransactions: asyncHandler(async (req: Request, res: Response) => {
+    const actor = requireActor(req);
+    const q = req.query as any;
+    const result = await userService.getWalletTransactions(actor.id, q.page, q.limit);
+    sendPaginated(res, result.items, result.pagination);
   }),
 
   // ---- Favourites (app-facing) ----

@@ -1,0 +1,18 @@
+--- OnChikitsa_user/app/_lib/permissions.js
++++ OnChikitsa_user/app/_lib/permissions.js
+@@ -16,2 +16,3 @@
+ }
++import { deviceApi } from './api';
+ 
+@@ -165,2 +166,11 @@
+     if (state === 'granted') {
++      PushNotifications.addListener('registration', (token) => {
++        deviceApi.register(token.value, 'android').catch(() => {});
++      });
++      PushNotifications.addListener('pushNotificationReceived', (notification) => {
++        // Show in-app toast or alert if needed
++      });
++      PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
++        // Handle tap
++      });
+       try {

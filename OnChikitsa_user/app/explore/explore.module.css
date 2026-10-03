@@ -101,3 +101,27 @@
 }
 .tab.active { color: #6a5cf0; }
 .tab:active { transform: scale(0.94); }
+.imgLogo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 15px;
+}
+.rightWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+.ratingBadge {
+  font: 700 12px var(--font-sans);
+  color: #f59e0b;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: #fef3c7;
+  padding: 4px 8px;
+  border-radius: 999px;
+}

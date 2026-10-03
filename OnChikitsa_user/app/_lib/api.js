@@ -4,7 +4,7 @@
 // Firebase ID token. Users never receive a backend JWT — the Firebase token is
 // verified per-request by the backend (firebaseAuth). Envelopes are unwrapped to
 // `data`; failures throw a typed ApiError so callers can branch on `.code`.
-import { getIdToken } from './auth';
+import { getIdToken, signOut } from './auth';
 
 const BASE = (process.env.NEXT_PUBLIC_API_URL || '') + '/api/v1';
 
@@ -21,13 +21,14 @@ export class ApiError extends Error {
   }
 }
 
-async function request(path, { method = 'GET', body, auth = true } = {}) {
+async function request(path, { method = 'GET', body, auth = true, _retry = false } = {}) {
   const headers = {
     'Content-Type': 'application/json',
     'ngrok-skip-browser-warning': 'true',
   };
   if (auth) {
-    const token = await getIdToken();
+    // Force a fresh token on a retry — the previous one was rejected (401).
+    const token = await getIdToken(_retry === true);
     if (!token) throw new ApiError('NO_SESSION', 'You are not signed in.', 401);
     headers.Authorization = `Bearer ${token}`;
   }
@@ -51,6 +52,16 @@ async function request(path, { method = 'GET', body, auth = true } = {}) {
     clearTimeout(id);
   }
 
+  // A 401 on an authenticated call means Firebase's token was rejected (revoked, or
+  // clock skew). Retry ONCE with a force-refreshed token; if it still fails the
+  // session is dead — sign out and bounce to /welcome so the user can re-auth
+  // instead of being stuck on a broken protected screen.
+  if (res.status === 401 && auth) {
+    if (!_retry) return request(path, { method, body, auth, _retry: true });
+    await endDeadSession();
+    throw new ApiError('SESSION_EXPIRED', 'Your session has expired. Please sign in again.', 401);
+  }
+
   let json = null;
   try {
     json = await res.json();
@@ -63,6 +74,13 @@ async function request(path, { method = 'GET', body, auth = true } = {}) {
     throw new ApiError(err.code || 'ERROR', err.message || `Request failed (${res.status})`, res.status);
   }
   return json.data;
+}
+
+/** Tear down a dead session and return the user to the welcome screen. */
+async function endDeadSession() {
+  try { await signOut(); } catch { /* ignore */ }
+  invalidateMe();
+  if (typeof window !== 'undefined') window.location.assign('/welcome');
 }
 
 // Short-lived in-memory cache for GET /user/me. Every protected screen's routing
@@ -100,6 +118,11 @@ export const userApi = {
     _meCache = { at: Date.now(), data }; // PATCH returns the updated doc
     return data;
   },
+  /** GET /user/wallet — returns { balancePaise, balanceRupees } */
+  getWallet: () => request('/user/wallet'),
+  /** GET /user/wallet/transactions — paginated wallet history */
+  getWalletTransactions: ({ page = 1, limit = 20 } = {}) =>
+    request(`/user/wallet/transactions?page=${page}&limit=${limit}`),
 };
 
 export const faqApi = {
@@ -109,6 +132,11 @@ export const faqApi = {
    * by the admin-defined order. Curated entirely from the admin panel.
    */
   list: () => request('/user/faqs'),
+};
+
+export const deviceApi = {
+  register: (token, platform) => api.post('/user/devices', { token, platform }),
+  unregister: (token) => api.post('/user/devices/remove', { token }),
 };
 
 export const supportApi = {
@@ -179,6 +207,19 @@ export const bookingApi = {
   listMine: (scope = 'all') => request(`/user/bookings?scope=${scope}&limit=100`),
   /** POST /user/bookings/:id/cancel — cancel a still-booked appointment. */
   cancel: (id) => request(`/user/bookings/${id}/cancel`, { method: 'POST' }),
+  /**
+   * POST /user/bookings/rebook/lookup — confirm an existing appointment ID and
+   * report whether a free re-book is allowed. Body `{ appointmentCode, clinicId }`.
+   * Returns `{ patient, clinicName, originalDate, tokenValidUntil, eligible,
+   * ineligibleReason }`.
+   */
+  rebookLookup: (payload) => request('/user/bookings/rebook/lookup', { method: 'POST', body: payload }),
+  /**
+   * POST /user/bookings/rebook — free (₹0) re-book using a still-valid token. Body
+   * `{ appointmentCode, clinicId, date, slotStart, slotEnd }`. Returns the new
+   * appointment (with its `tokenNo`). No payment.
+   */
+  rebook: (payload) => request('/user/bookings/rebook', { method: 'POST', body: payload }),
 };
 
 export const paymentApi = {
@@ -211,4 +252,27 @@ export const paymentApi = {
    * direct /verify call — the webhook may confirm the booking even if the client drops.
    */
   status: (orderId) => request(`/user/payments/status/${orderId}`),
+};
+
+export const reviewApi = {
+  /**
+   * POST /user/bookings/:id/review — rate a COMPLETED appointment (create or edit the
+   * caller's own review). Body `{ rating: 1..5, comment? }`. Returns the saved review
+   * `{ id, rating, comment, createdAt }` (never any reviewer identity).
+   */
+  submit: (appointmentId, { rating, comment }) =>
+    request(`/user/bookings/${appointmentId}/review`, { method: 'POST', body: { rating, comment } }),
+  /** GET /user/bookings/:id/review — the caller's own review for an appointment (prefill), or null. */
+  mine: (appointmentId) => request(`/user/bookings/${appointmentId}/review`),
+  /**
+   * GET /user/clinics/:id/reviews — a clinic's anonymous reviews (paginated → items array
+   * of `{ rating, comment, createdAt }`). The clinic's `ratingAvg`/`ratingCount` ride on
+   * the clinic doc from clinicApi.get, so no extra call is needed for the badge.
+   */
+  listForClinic: (clinicId, { page = 1, limit = 20 } = {}) =>
+    request(`/user/clinics/${clinicId}/reviews?page=${page}&limit=${limit}`),
+};
+
+export const legalApi = {
+  get: async () => request('/public/legal', { auth: false }),
 };

@@ -1,0 +1,10 @@
+--- backend/src/modules/notifications/device.routes.ts
++++ backend/src/modules/notifications/device.routes.ts
+@@ -10,2 +10,7 @@
+ userDeviceRoutes.post('/', validate({ body: registerDeviceSchema }), deviceController.register);
+ userDeviceRoutes.post('/remove', validate({ body: unregisterDeviceSchema }), deviceController.unregister);
++
++export const clinicDeviceRoutes = Router();
++clinicDeviceRoutes.use(firebaseAuth('CLINIC'));
++clinicDeviceRoutes.post('/', validate({ body: registerDeviceSchema }), deviceController.register);
++clinicDeviceRoutes.post('/remove', validate({ body: unregisterDeviceSchema }), deviceController.unregister);

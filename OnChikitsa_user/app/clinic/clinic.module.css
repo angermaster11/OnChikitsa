@@ -218,3 +218,55 @@
   font: 600 12px var(--font-sans); color: #4a4a52;
   background: #f0f0f3; border-radius: 999px; padding: 6px 12px;
 }
+
+/* Two-route booking chooser (New booking vs free re-book by ID). */
+.choiceCard {
+  width: 100%; margin-top: 12px; cursor: pointer; text-align: left;
+  display: flex; align-items: center; gap: 13px;
+  background: #fff; border: 1px solid #ececf0; border-radius: 16px; padding: 15px;
+  box-shadow: 0 5px 16px rgba(20, 20, 45, 0.05);
+}
+.choiceCard:active { transform: scale(0.995); }
+.choiceIc {
+  flex: 0 0 auto; width: 44px; height: 44px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: #f2f0fe; color: #6a5cf0;
+}
+.choiceBody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.choiceTitle { font: 700 15px var(--font-sans); color: #0e0e12; }
+.choiceSub { font: 500 12.5px var(--font-sans); color: #6c6c75; }
+.choiceChev { color: #b0b0b8; flex: 0 0 auto; }
+
+/* Free re-book banner (no payment). */
+.freeNote {
+  margin: 0 0 14px; padding: 11px 14px; border-radius: 12px;
+  background: #e7f7ec; color: #1a8a45; font: 700 12.5px var(--font-sans);
+}
+
+/* This clinic's own still-valid tokens — tap one instead of typing the code. */
+.tokenList { display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
+.tokenItem {
+  width: 100%; text-align: left; cursor: pointer;
+  display: flex; align-items: center; gap: 12px;
+  background: #fff; border: 1.5px solid #ececf0; border-radius: 14px; padding: 12px;
+}
+.tokenItem.on { border-color: #6a5cf0; background: #f7f6ff; }
+.tokenItem:active { transform: scale(0.995); }
+.tokenItemIc {
+  flex: 0 0 auto; width: 40px; height: 40px; border-radius: 11px;
+  display: flex; align-items: center; justify-content: center; background: #f2f0fe; color: #6a5cf0;
+}
+.tokenItemBody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tokenItemCode { font: 700 14px var(--font-sans); color: #0e0e12; }
+.tokenItemSub { font: 500 12px var(--font-sans); color: #6c6c75; }
+.tokenItemChev { color: #b0b0b8; flex: 0 0 auto; }
+.tokenItemChk { color: #6a5cf0; flex: 0 0 auto; }
+
+/* Reviews tab (anonymous) */
+.reviewSummary { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.reviewSummary .rate { font-size: 18px; }
+.reviewItem { padding: 12px 0; border-bottom: 1px solid #f0f0f4; }
+.reviewItem:last-child { border-bottom: none; }
+.reviewStars { display: inline-flex; gap: 2px; line-height: 0; }
+.reviewText { margin: 6px 0 4px; font: 500 14px var(--font-sans); color: #2a2a30; }
+.reviewDate { margin: 0; font: 500 12px var(--font-sans); color: #9a9aa4; }

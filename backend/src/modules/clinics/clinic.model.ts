@@ -77,7 +77,14 @@ export interface ClinicDoc extends Document<Types.ObjectId> {
   holidays?: string[];           // specific closed dates, "YYYY-MM-DD"
   status: ClinicStatus;
   consultationFee?: number;
+  /** How many days a booking's token stays valid for a free re-book (0/absent = no free re-book). */
+  tokenValidityDays?: number;
   averageConsultationTime?: number;
+  /** Denormalized rating aggregate — updated atomically on each review so clinic
+   *  reads never aggregate. ratingAvg = ratingSum / ratingCount (1 decimal, 0 when none). */
+  ratingSum?: number;
+  ratingCount?: number;
+  ratingAvg?: number;
   /** Per-clinic commission override (0–100). Falls back to settings.defaultCommissionPercent. */
   commissionPercent?: number | null;
   bannedAt?: Date | null;
@@ -168,7 +175,13 @@ const clinicSchema = new Schema<ClinicDoc>(
       required: true,
     },
     consultationFee: { type: Number, min: 0 },
+    tokenValidityDays: { type: Number, min: 0, max: 365 },
     averageConsultationTime: { type: Number, min: 0 },
+    // Denormalized rating aggregate (see interface). Updated via an atomic pipeline
+    // update on review create/change; reads never recompute it.
+    ratingSum: { type: Number, default: 0, min: 0 },
+    ratingCount: { type: Number, default: 0, min: 0 },
+    ratingAvg: { type: Number, default: 0, min: 0, max: 5 },
     commissionPercent: { type: Number, min: 0, max: 100, default: null },
     bannedAt: { type: Date, default: null },
     bannedBy: { type: Schema.Types.ObjectId, ref: 'Admin', default: null },

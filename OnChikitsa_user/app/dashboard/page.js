@@ -9,10 +9,10 @@ import {
 } from '../_components/icons';
 import { resolveRoute } from '../_lib/onboarding';
 import { flow } from '../_lib/flow';
-import { unreadCount } from '../_lib/notifications';
+import { unreadCountFrom } from '../_lib/notifications';
 import { getCurrentUser } from '../_lib/auth';
-import { clinicApi, favoriteApi, ApiError } from '../_lib/api';
-import { mapClinicCard } from '../_lib/clinicMap';
+import { clinicApi, favoriteApi, bookingApi, ApiError } from '../_lib/api';
+import { mapClinicCard, mapBooking } from '../_lib/clinicMap';
 import styles from './dashboard.module.css';
 
 const GLYPHS = { building: Building, stethoscope: Stethoscope, tooth: Tooth, heart: HeartPulse, sparkles: Sparkles, brain: Brain, flask: Flask };
@@ -60,12 +60,21 @@ export default function Dashboard() {
     return () => window.removeEventListener('focus', read);
   }, []);
 
-  // Keep the bell's unread dot honest — recompute on mount and on refocus.
+  // Keep the bell's unread dot honest — derive it from the user's real bookings
+  // (reminders for upcoming visits + "rate your visit" for completed ones).
   useEffect(() => {
-    const read = () => { try { setUnread(unreadCount()); } catch { setUnread(0); } };
+    let cancelled = false;
+    const read = async () => {
+      try {
+        const rows = await bookingApi.listMine('all');
+        if (!cancelled) setUnread(unreadCountFrom((rows || []).map(mapBooking)));
+      } catch {
+        if (!cancelled) setUnread(0);
+      }
+    };
     read();
     window.addEventListener('focus', read);
-    return () => window.removeEventListener('focus', read);
+    return () => { cancelled = true; window.removeEventListener('focus', read); };
   }, []);
 
   // Central onboarding guard (the clinic API needs a signed-in token).
@@ -208,7 +217,11 @@ export default function Dashboard() {
 
       <div className={styles.cats}>
         {CATEGORIES.map(({ Icon, label }, i) => (
-          <button key={label} className={`${styles.cat} ${i === 0 ? styles.on : ''}`} onClick={() => router.push('/explore')}>
+          <button
+            key={label}
+            className={`${styles.cat} ${i === 0 ? styles.on : ''}`}
+            onClick={() => router.push(i === 0 ? '/explore' : `/explore?specialty=${encodeURIComponent(label)}`)}
+          >
             <span className={styles.tile}><Icon size={24} /></span>
             <span className={styles.catLabel}>{label}</span>
           </button>

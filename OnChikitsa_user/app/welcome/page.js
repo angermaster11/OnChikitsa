@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation';
 import { Poppins } from 'next/font/google';
-import { Star } from '../_components/icons';
 import styles from './welcome.module.css';
 
 // Brand wordmark/type — same family as the splash so the flow reads as one.
@@ -45,27 +44,24 @@ export default function Welcome() {
           <div className={styles.stat}>
             <Laurel />
             <span className={styles.statMid}>
-              <span className={styles.statNum}>50,000+</span>
-              <span className={styles.statLbl}>Happy patients</span>
+              <span className={styles.statNum}>Verified</span>
+              <span className={styles.statLbl}>Partner clinics</span>
             </span>
             <Laurel flip />
           </div>
           <div className={styles.stat}>
             <Laurel />
             <span className={styles.statMid}>
-              <span className={styles.statNum}>500+</span>
-              <span className={styles.statLbl}>Partner clinics</span>
+              <span className={styles.statNum}>Minutes</span>
+              <span className={styles.statLbl}>To book a visit</span>
             </span>
             <Laurel flip />
           </div>
         </div>
 
         <div className={styles.quote}>
-          <span className={styles.stars}>
-            {Array.from({ length: 5 }).map((_, i) => <Star key={i} size={15} />)}
-          </span>
-          <p className={styles.quoteText}>&ldquo;Got my appointment in minutes. No more queues.&rdquo;</p>
-          <span className={styles.quoteBy}>Priya S. <span aria-hidden="true">🇮🇳</span></span>
+          <p className={styles.quoteText}>&ldquo;Book a real-time token and skip the waiting-room queue.&rdquo;</p>
+          <span className={styles.quoteBy}>How OnChikitsa works</span>
         </div>
 
         <div className={styles.cards}>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Screen from '../_components/Screen';
 import TopBar from '../_components/TopBar';
 import EmptyState from '../_components/EmptyState';
@@ -20,11 +20,29 @@ const TYPE = {
 };
 
 export default function Notifications() {
-  const [items, setItems] = useState(NOTIFICATIONS);
+  const [items, setItems] = useState([]);
+
+  useEffect(() => {
+    try {
+      const readIds = JSON.parse(localStorage.getItem('clinic_read_notifs') || '[]');
+      setItems(NOTIFICATIONS.map((n) => (readIds.includes(n.id) ? { ...n, unread: false } : n)));
+    } catch {
+      setItems(NOTIFICATIONS);
+    }
+  }, []);
+
   const unread = items.filter((n) => n.unread).length;
 
-  const markAll = () => { tapLight(); setItems((xs) => xs.map((n) => ({ ...n, unread: false }))); };
-  const markRead = (id) => { tapLight(); setItems((xs) => xs.map((n) => (n.id === id ? { ...n, unread: false } : n))); };
+  const saveRead = (newItems) => {
+    try {
+      const readIds = newItems.filter(n => !n.unread).map(n => n.id);
+      localStorage.setItem('clinic_read_notifs', JSON.stringify(readIds));
+    } catch {}
+    setItems(newItems);
+  };
+
+  const markAll = () => { tapLight(); saveRead(items.map((n) => ({ ...n, unread: false }))); };
+  const markRead = (id) => { tapLight(); saveRead(items.map((n) => (n.id === id ? { ...n, unread: false } : n))); };
 
   return (
     <Screen>

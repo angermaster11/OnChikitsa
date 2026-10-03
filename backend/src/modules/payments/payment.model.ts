@@ -35,6 +35,7 @@ export interface PaymentBreakdownSnapshot {
   gstBase: GstBase;
   gstPaise: number;
   totalPaise: number;
+  walletDeductionPaise?: number;
   clinicAmountPaise: number;
   platformAmountPaise: number;
 }
@@ -91,6 +92,7 @@ const breakdownSchema = new Schema<PaymentBreakdownSnapshot>(
     gstBase: { type: String, enum: Object.values(GST_BASE), required: true },
     gstPaise: { type: Number, required: true },
     totalPaise: { type: Number, required: true },
+    walletDeductionPaise: { type: Number, default: 0 },
     clinicAmountPaise: { type: Number, required: true },
     platformAmountPaise: { type: Number, required: true },
   },
@@ -163,6 +165,8 @@ transactionSchema.index({ clinicId: 1, status: 1, createdAt: -1 });
 // User's own payment history.
 transactionSchema.index({ userId: 1, createdAt: -1 });
 transactionSchema.index({ razorpayPaymentId: 1 });
+// Lookup by the linked appointment (cancellation → mark refunded).
+transactionSchema.index({ appointmentId: 1 });
 // Wallet settlement queries: a clinic's pending vs settled shares.
 transactionSchema.index({ clinicId: 1, 'settlement.status': 1 });
 // One order id per row — but a null id must not collide, so index only rows that

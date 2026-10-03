@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Search, X, Navigation, Home, Briefcase, MapPin } from '../_components/icons';
+import { ArrowLeft, Search, X, Navigation, MapPin } from '../_components/icons';
 import { flow } from '../_lib/flow';
 import styles from './location.module.css';
 
@@ -205,20 +205,6 @@ export default function LocationPicker() {
           <button className={styles.current} onClick={useHere} disabled={locating}>
             <span className={styles.curIcon}><Navigation size={20} fill="currentColor" /></span>
             {locating ? 'Locating…' : 'Current location'}
-          </button>
-
-          <div className={styles.addrHead}>
-            <h2 className={styles.addrTitle}>My addresses</h2>
-            <button className={styles.manage}>Manage</button>
-          </div>
-
-          <button className={styles.addr}>
-            <span className={styles.addrIcon}><Home size={20} /></span>
-            Add home
-          </button>
-          <button className={styles.addr}>
-            <span className={styles.addrIcon}><Briefcase size={20} /></span>
-            Add work
           </button>
         </>
       )}

@@ -3,13 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ChevronRight, User, Heart, MessageCircle, Calendar, Clipboard, Settings,
-  LifeBuoy, Globe, LogOut, Home, Compass, Ticket,
+  ChevronRight, User, Heart, MessageCircle, Calendar,
+  LifeBuoy, LogOut, Home, Compass, Ticket, Clipboard,
 } from '../_components/icons';
 import { resolveRoute } from '../_lib/onboarding';
 import { flow } from '../_lib/flow';
 import { signOut, getCurrentUser } from '../_lib/auth';
-import { invalidateMe } from '../_lib/api';
+import { invalidateMe, userApi } from '../_lib/api';
 import styles from './profile.module.css';
 
 const MENU = [
@@ -17,11 +17,9 @@ const MENU = [
   { key: 'favourites', label: 'Favourites', Icon: Heart },
   { key: 'messages', label: 'Messages', Icon: MessageCircle },
   { key: 'appointments', label: 'My appointments', Icon: Calendar },
-  { key: 'forms', label: 'Forms', Icon: Clipboard },
-  { key: 'settings', label: 'Settings', Icon: Settings },
 ];
 
-// Menu rows that navigate somewhere (the rest are placeholders for now).
+// Every menu row navigates to a real screen.
 const MENU_ROUTES = { profile: '/account', favourites: '/favourites', messages: '/messages', appointments: '/bookings' };
 
 export default function Profile() {
@@ -29,6 +27,7 @@ export default function Profile() {
   const [profile, setProfile] = useState(null);
   const [signingOut, setSigningOut] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [walletBalance, setWalletBalance] = useState(null);
 
   useEffect(() => { setProfile(flow.getProfile()); }, []);
 
@@ -49,6 +48,11 @@ export default function Profile() {
         if (cancelled) return;
         if (route !== '/dashboard') { router.replace(route); return; }
         setProfile(flow.getProfile());
+        // Fetch wallet balance (best-effort — if it fails the card just shows ₹0)
+        try {
+          const w = await userApi.getWallet();
+          if (!cancelled) setWalletBalance(w.balanceRupees ?? 0);
+        } catch { setWalletBalance(0); }
       } catch { /* network/server error → keep the cached view */ }
     })();
     return () => { cancelled = true; };
@@ -80,10 +84,15 @@ export default function Profile() {
         <span className={styles.avatar}>{initials}</span>
       </header>
 
+      {/* ── Wallet Card ─────────────────────────────────────── */}
       <section className={styles.wallet}>
-        <p className={styles.walletLabel}>Wallet balance</p>
-        <p className={styles.walletAmt}>₹0.00</p>
-        <button className={styles.walletBtn}>View wallet</button>
+        <p className={styles.walletLabel}>My Wallet</p>
+        <p className={styles.walletAmt}>
+          ₹{walletBalance === null ? '—' : walletBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </p>
+        <button className={styles.walletBtn} onClick={() => router.push('/wallet')}>
+          View transactions
+        </button>
       </section>
 
       {!complete && (
@@ -99,7 +108,7 @@ export default function Profile() {
           <button
             key={key}
             className={styles.row}
-            onClick={MENU_ROUTES[key] ? () => router.push(MENU_ROUTES[key]) : undefined}
+            onClick={() => router.push(MENU_ROUTES[key])}
           >
             <Icon size={22} className={styles.rowIcon} />
             <span className={styles.rowLabel}>{label}</span>
@@ -108,14 +117,22 @@ export default function Profile() {
         ))}
       </section>
       <section className={styles.card}>
+        <button className={styles.row} onClick={() => router.push('/legal/privacy')}>
+          <Clipboard size={22} className={styles.rowIcon} />
+          <span className={styles.rowLabel}>Privacy Policy</span>
+          <ChevronRight size={20} className={styles.rowChev} />
+        </button>
+        <button className={styles.row} onClick={() => router.push('/legal/terms')}>
+          <Clipboard size={22} className={styles.rowIcon} />
+          <span className={styles.rowLabel}>Terms & Conditions</span>
+          <ChevronRight size={20} className={styles.rowChev} />
+        </button>
+      </section>
+
+      <section className={styles.card}>
         <button className={styles.row} onClick={() => router.push('/support')}>
           <LifeBuoy size={22} className={styles.rowIcon} />
           <span className={styles.rowLabel}>Support</span>
-          <ChevronRight size={20} className={styles.rowChev} />
-        </button>
-        <button className={styles.row}>
-          <Globe size={22} className={styles.rowIcon} />
-          <span className={styles.rowLabel}>English (India)</span>
           <ChevronRight size={20} className={styles.rowChev} />
         </button>
       </section>

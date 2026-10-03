@@ -57,6 +57,7 @@ export default function ClinicDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [editCommission, setEditCommission] = useState(false);
+  const [editValidity, setEditValidity] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -149,6 +150,31 @@ export default function ClinicDetailPage() {
             {clinic.averageConsultationTime != null ? `${clinic.averageConsultationTime} min` : '—'}
           </Field>
         </SectionCard>
+
+        <Card>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-slate-900">Free re-book window</h2>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!hasPermission('CLINIC_UPDATE')}
+              onClick={() => setEditValidity(true)}
+            >
+              Edit validity
+            </Button>
+          </div>
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Token validity">
+              {clinic.tokenValidityDays
+                ? `${clinic.tokenValidityDays} day${clinic.tokenValidityDays === 1 ? '' : 's'}`
+                : 'Off'}
+            </Field>
+          </dl>
+          <p className="mt-4 text-xs text-slate-500">
+            Within this many days of a paid visit, a patient can re-book this clinic for free using
+            their appointment ID. 0 or unset disables free re-booking.
+          </p>
+        </Card>
 
         <Card>
           <div className="mb-4 flex items-center justify-between gap-3">
@@ -263,6 +289,16 @@ export default function ClinicDetailPage() {
           }}
         />
       )}
+      {editValidity && (
+        <ValidityModal
+          clinic={clinic}
+          onClose={() => setEditValidity(false)}
+          onSaved={() => {
+            setEditValidity(false);
+            void load();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -333,6 +369,65 @@ function CommissionModal({
             <Input type="number" min={0} max={100} step="0.01" value={value} onChange={(e) => setValue(e.target.value)} />
           </FormField>
         )}
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * Per-clinic free-rebook window editor. PATCHes /admin/clinics/:id with
+ * tokenValidityDays (0 disables it). Uses the CLINIC_UPDATE permission — the
+ * backend authorizes the write.
+ */
+function ValidityModal({
+  clinic,
+  onClose,
+  onSaved,
+}: {
+  clinic: Clinic;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [value, setValue] = useState(clinic.tokenValidityDays != null ? String(clinic.tokenValidityDays) : '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const num = Number(value);
+  const valid = value.trim() !== '' && Number.isInteger(num) && num >= 0 && num <= 365;
+
+  async function submit() {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.patch(`/admin/clinics/${clinic._id}`, { tokenValidityDays: num });
+      onSaved();
+    } catch (err) {
+      setError(
+        err instanceof ApiError && err.isForbidden
+          ? 'You are not permitted to update this clinic.'
+          : errorMessage(err),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Edit free re-book window"
+      description={`How many days ${clinic.name}'s paid-visit token stays valid for a free re-book. 0 disables it.`}
+      size="sm"
+      footer={
+        <ConfirmFooter onCancel={onClose} onConfirm={submit} confirmLabel="Save validity" loading={busy} disabled={!valid || busy} />
+      }
+    >
+      <div className="space-y-3">
+        {error && <Alert tone="error">{error}</Alert>}
+        <FormField label="Token validity (days)" required error={valid ? undefined : 'Enter a whole number 0–365'}>
+          <Input type="number" min={0} max={365} step="1" value={value} onChange={(e) => setValue(e.target.value)} />
+        </FormField>
       </div>
     </Modal>
   );

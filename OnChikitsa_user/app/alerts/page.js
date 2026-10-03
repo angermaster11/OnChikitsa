@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Bell, Ticket, HeartPulse } from '../_components/icons';
 import { resolveRoute } from '../_lib/onboarding';
 import { getCurrentUser } from '../_lib/auth';
-import { getNotifications } from '../_lib/notifications';
+import { buildNotifications } from '../_lib/notifications';
+import { bookingApi } from '../_lib/api';
+import { mapBooking } from '../_lib/clinicMap';
 import { flow } from '../_lib/flow';
 import styles from './alerts.module.css';
 
@@ -17,7 +19,7 @@ export default function Alerts() {
   const [items, setItems] = useState([]);
 
   // Same fast auth gate + onboarding guard as the rest of the app. The list is
-  // generated client-side (localStorage), so it's read after the mount check.
+  // derived from the user's real bookings (reminders + "rate your visit").
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -25,8 +27,13 @@ export default function Alerts() {
       try { user = await getCurrentUser(); } catch { user = null; }
       if (cancelled) return;
       if (!user) { router.replace('/welcome'); return; }
-      setItems(getNotifications());
-      setChecking(false);
+      try {
+        const rows = await bookingApi.listMine('all');
+        if (!cancelled) setItems(buildNotifications((rows || []).map(mapBooking)));
+      } catch {
+        if (!cancelled) setItems([]);
+      }
+      if (!cancelled) setChecking(false);
       try {
         const route = await resolveRoute();
         if (!cancelled && route !== '/dashboard') router.replace(route);
@@ -43,9 +50,11 @@ export default function Alerts() {
     flow.markNotifsRead(items.map((n) => n.id));
     setItems((list) => list.map((n) => ({ ...n, unread: false })));
   };
-  const openItem = (id) => {
-    flow.markNotifsRead([id]);
-    setItems((list) => list.map((n) => (n.id === id ? { ...n, unread: false } : n)));
+  const openItem = (n) => {
+    flow.markNotifsRead([n.id]);
+    setItems((list) => list.map((x) => (x.id === n.id ? { ...x, unread: false } : x)));
+    // A booking update (e.g. "rate your visit") takes the user to their bookings.
+    if (n.type === 'booking' || n.type === 'reminder') router.push('/bookings');
   };
 
   return (
@@ -69,7 +78,7 @@ export default function Alerts() {
           {items.map((n) => {
             const Icon = ICONS[n.type] || Bell;
             return (
-              <button key={n.id} className={`${styles.item} ${n.unread ? styles.unread : ''}`} onClick={() => openItem(n.id)}>
+              <button key={n.id} className={`${styles.item} ${n.unread ? styles.unread : ''}`} onClick={() => openItem(n)}>
                 <span className={`${styles.ico} ${styles[n.tone]}`}><Icon size={20} /></span>
                 <span className={styles.body}>
                   <span className={styles.row}>

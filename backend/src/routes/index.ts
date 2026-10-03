@@ -19,6 +19,18 @@ import {
   razorpayWebhookRoutes,
 } from '../modules/payments/payment.routes';
 import { adminWalletRoutes } from '../modules/wallet/wallet.routes';
+import {
+  userBookingReviewRoutes,
+  userClinicReviewRoutes,
+  clinicReviewRoutes,
+  adminClinicReviewRoutes,
+} from '../modules/reviews/review.routes';
+import { userDeviceRoutes, clinicDeviceRoutes } from '../modules/notifications/device.routes';
+import {
+  userNotificationRoutes,
+  adminNotificationRoutes,
+} from '../modules/notifications/notification.routes';
+import { adminLegalRoutes, publicLegalRoutes } from '../modules/legal/legal.routes';
 
 /**
  * The single /api/v1 router. Every module exposes its own Router; this file is
@@ -33,6 +45,8 @@ import { adminWalletRoutes } from '../modules/wallet/wallet.routes';
  */
 export const apiRouter = Router();
 
+apiRouter.use('/public/legal', publicLegalRoutes);
+
 // --- Staff / admin-panel surface (JWT via adminAuth) ---
 apiRouter.use('/', authRoutes); // /admin/login, /admin/refresh, /admin/logout, /admin/me
 apiRouter.use('/admin/dashboard', dashboardRoutes);
@@ -43,16 +57,24 @@ apiRouter.use('/admin/faqs', adminFaqRoutes);
 apiRouter.use('/admin/admins', adminManagementRoutes);
 apiRouter.use('/admin/support', adminSupportRoutes);
 apiRouter.use('/admin/settings', adminSettingsRoutes);
+apiRouter.use('/admin/legal', adminLegalRoutes);
 apiRouter.use('/admin/transactions', adminTransactionRoutes);
 apiRouter.use('/admin/wallet', adminWalletRoutes);
 apiRouter.use('/admin/audit-logs', auditRoutes);
+apiRouter.use('/admin/notifications', adminNotificationRoutes);
+// Anonymous clinic reviews for moderation (falls through from /admin/clinics).
+apiRouter.use('/admin/clinics', adminClinicReviewRoutes);
 
 // --- App surface: patients (Firebase USER) ---
 apiRouter.use('/user/support', userSupportRoutes);
 apiRouter.use('/user/faqs', userFaqRoutes);
 apiRouter.use('/user/clinics', userClinicRoutes);
+apiRouter.use('/user/clinics', userClinicReviewRoutes); // GET /:id/reviews (anonymous)
 apiRouter.use('/user/bookings', userBookingRoutes);
+apiRouter.use('/user/bookings', userBookingReviewRoutes); // POST/GET /:id/review
 apiRouter.use('/user/payments', userPaymentRoutes);
+apiRouter.use('/user/devices', userDeviceRoutes); // FCM token register/unregister
+apiRouter.use('/user/notifications', userNotificationRoutes); // in-app feed (events + broadcasts)
 apiRouter.use('/user', userAppRoutes);
 
 // --- Razorpay webhook (PUBLIC: no JWT, verified by the raw-body HMAC signature) ---
@@ -62,6 +84,8 @@ apiRouter.use('/payments/razorpay', razorpayWebhookRoutes);
 apiRouter.use('/clinic/doctors', clinicDoctorRoutes);
 apiRouter.use('/clinic/appointments', clinicAppointmentRoutes);
 apiRouter.use('/clinic/earnings', clinicEarningsRoutes);
+apiRouter.use('/clinic/reviews', clinicReviewRoutes);
 apiRouter.use('/clinic/uploads', clinicUploadRoutes);
 apiRouter.use('/clinic/support', clinicSupportRoutes);
+apiRouter.use('/clinic/devices', clinicDeviceRoutes);
 apiRouter.use('/clinic', clinicAppRoutes);

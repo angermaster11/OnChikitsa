@@ -76,3 +76,10 @@ export type BanBody = z.infer<typeof banSchema>;
 export type RegisterUserBody = z.infer<typeof registerUserSchema>;
 export type UpdateProfileBody = z.infer<typeof updateProfileSchema>;
 export type LocationInput = z.infer<typeof locationSchema>;
+
+export const fundWalletSchema = z.object({
+  amountPaise: z.number().int().positive(),
+  message: z.string().optional(),
+});
+export type FundWalletBody = z.infer<typeof fundWalletSchema>;
+

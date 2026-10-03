@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { ChevronDown } from '../_components/icons';
 import { flow } from '../_lib/flow';
 import { sendOtp } from '../_lib/auth';
@@ -95,7 +96,7 @@ export default function Login() {
       </form>
 
       <p className={styles.foot}>
-        Learn how OnChikitsa protects your <a href="#">privacy</a>
+        By logging in, you agree to our <Link href="/legal/terms">Terms & Conditions</Link> and <Link href="/legal/privacy">Privacy Policy</Link>
       </p>
     </main>
   );

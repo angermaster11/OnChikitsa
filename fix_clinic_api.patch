@@ -1,0 +1,10 @@
+--- OnChikitsa_clinic/app/_lib/api.js
++++ OnChikitsa_clinic/app/_lib/api.js
+@@ -107,2 +107,7 @@
+ 
++export const deviceApi = {
++  register: (token, platform) => api.post('/clinic/devices', { token, platform }),
++  unregister: (token) => api.post('/clinic/devices/remove', { token }),
++};
++
+ export const supportApi = {

@@ -132,4 +132,36 @@ describe('User registration + onboarding funnel', () => {
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
+
+  describe('GET /api/v1/user/wallet', () => {
+    it('returns default wallet balance (0) for user', async () => {
+      await createUser({ firebaseUid: 'wallet-uid-default', name: 'Wallet User' });
+      const res = await request(app).get('/api/v1/user/wallet').set(auth('wallet-uid-default'));
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toEqual({
+        balancePaise: 0,
+        balanceRupees: 0,
+      });
+    });
+
+    it('returns populated wallet balance with rupees conversion', async () => {
+      const user = await createUser({ firebaseUid: 'wallet-uid-funded', name: 'Funded User' });
+      user.walletBalancePaise = 25050;
+      await user.save();
+
+      const res = await request(app).get('/api/v1/user/wallet').set(auth('wallet-uid-funded'));
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toEqual({
+        balancePaise: 25050,
+        balanceRupees: 250.5,
+      });
+    });
+
+    it('rejects unauthenticated wallet requests with 401', async () => {
+      const res = await request(app).get('/api/v1/user/wallet');
+      expect(res.status).toBe(401);
+    });
+  });
 });

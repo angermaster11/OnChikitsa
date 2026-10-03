@@ -2,10 +2,16 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Poppins } from 'next/font/google';
-import { ChevronDown, Google, Check } from '../_components/icons';
+import { ChevronDown, Check } from '../_components/icons';
 import { flow } from '../_lib/flow';
 import styles from './login.module.css';
+
+// Legal links are set per-deployment via env (left unset → inert '#').
+const TERMS_URL = process.env.NEXT_PUBLIC_TERMS_URL || '#';
+const PRIVACY_URL = process.env.NEXT_PUBLIC_PRIVACY_URL || '#';
+const extLink = (href) => (href && href !== '#' ? { href, target: '_blank', rel: 'noreferrer' } : { href: '#' });
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -90,14 +96,8 @@ export default function Login() {
           <button type="submit" className={styles.primary} disabled={!valid}>Get started</button>
         </form>
 
-        <div className={styles.divider}><span>OR</span></div>
-
-        <button type="button" className={styles.google}>
-          <Google size={20} /> Continue with Google
-        </button>
-
         <p className={styles.legal}>
-          By continuing you agree to our <a href="#">Terms of Use</a> and <a href="#">Privacy Policy</a>.
+          By continuing you agree to our <Link href="/legal/terms">Terms of Use</Link> and <Link href="/legal/privacy">Privacy Policy</Link>.
         </p>
       </div>
     </main>

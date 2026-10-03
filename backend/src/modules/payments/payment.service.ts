@@ -12,6 +12,7 @@ import { type TransactionDoc } from './payment.model';
 import { paymentRepository, type TransactionListFilters } from './payment.repository';
 import { ProcessedWebhookEvent } from './webhookEvent.model';
 import { walletService } from '../wallet/wallet.service';
+import { notificationService } from '../notifications/notification.service';
 
 /**
  * The slice of a Razorpay webhook payload we act on. Razorpay wraps the changed
@@ -51,7 +52,7 @@ async function confirmPaidOrder(
     razorpaySignature?: string | null;
     razorpayStatus?: string | null;
   } = {},
-): Promise<{ payment: TransactionDoc; appointment: AppointmentDoc | null }> {
+): Promise<{ payment: TransactionDoc; appointment: AppointmentDoc | null; justConfirmed: boolean }> {
   const result = await runInTransaction(async (session) => {
     const payment = await paymentRepository.findByRazorpayOrderId(orderId, session);
     if (!payment) throw new NotFoundError(ERROR_CODES.PAYMENT_NOT_FOUND, 'Payment not found');
@@ -60,8 +61,8 @@ async function confirmPaidOrder(
       ? await appointmentRepository.findById(String(payment.appointmentId), session)
       : null;
 
-    // Already confirmed (the other path won the race): no-op.
-    if (payment.status === PAYMENT_STATUS.PAID) return { payment, appointment };
+    // Already confirmed (the other path won the race): no-op, don't re-notify.
+    if (payment.status === PAYMENT_STATUS.PAID) return { payment, appointment, justConfirmed: false };
 
     if (appointment && appointment.status === APPOINTMENT_STATUS.PENDING_PAYMENT) {
       // Token is the clinic's per-DAY queue sequence (across all slots), assigned
@@ -87,9 +88,43 @@ async function confirmPaidOrder(
     payment.paidAt = new Date();
     // Settlement stays PENDING (set at creation); the admin clears it offline.
     await payment.save(session ? { session } : undefined);
-    return { payment, appointment };
+
+    if (payment.breakdown?.walletDeductionPaise && payment.breakdown.walletDeductionPaise > 0) {
+      const { userRepository } = await import('../users/user.repository');
+      const { WalletTransaction } = await import('../users/walletTransaction.model');
+      
+      const user = await userRepository.findById(String(payment.userId), session);
+      if (user) {
+        user.walletBalancePaise = (user.walletBalancePaise || 0) - payment.breakdown.walletDeductionPaise;
+        await user.save(session ? { session } : undefined);
+
+        await WalletTransaction.create([{
+          userId: user._id,
+          amountPaise: payment.breakdown.walletDeductionPaise,
+          type: 'DEBIT',
+          description: `Used for booking at ${payment.clinicName || 'Clinic'}`
+        }], { session: session ?? undefined });
+      }
+    }
+
+    return { payment, appointment, justConfirmed: true };
   });
-  await refreshWallet(String(result.payment.clinicId));
+  // Recompute the clinic wallet OFF the response path: it is an O(N) rollup and
+  // this runs on the user's verify / the Razorpay webhook. The wallet is a cache
+  // that self-heals on the next change, so a detached best-effort refresh is safe
+  // and keeps booking confirmation fast. refreshWallet swallows its own errors.
+  setImmediate(() => {
+    void refreshWallet(String(result.payment.clinicId));
+  });
+  // Notify the patient their booking is confirmed — only on the call that actually
+  // transitioned it (idempotent so verify + webhook never double-notify). Off the
+  // response path, best-effort.
+  if (result.justConfirmed && result.appointment) {
+    const appt = result.appointment;
+    setImmediate(() => {
+      void notificationService.notifyAppointmentEvent(appt, 'accepted');
+    });
+  }
   return result;
 }
 
@@ -111,6 +146,7 @@ async function releaseFailedOrder(orderId: string, razorpayStatus?: string | nul
         appt.cancelledAt = new Date();
         appt.cancelledBy = 'USER';
         appt.holdExpiresAt = null;
+        appt.seatKey = null; // free the seat for re-booking
         await appt.save(session ? { session } : undefined);
       }
     }
@@ -118,6 +154,15 @@ async function releaseFailedOrder(orderId: string, razorpayStatus?: string | nul
 }
 
 export const paymentService = {
+  async confirmWalletPayment(paymentId: string): Promise<void> {
+    const payment = await paymentRepository.findById(paymentId);
+    if (!payment) return;
+    if (!payment.razorpayOrderId) return;
+    await confirmPaidOrder(payment.razorpayOrderId, {
+      razorpayPaymentId: `wallet_txn_${Date.now()}`,
+      razorpayStatus: 'captured',
+    });
+  },
   /**
    * Verify a checkout success handed back by the client, on behalf of the authed
    * owner of the order. Checks `HMAC_SHA256(order_id|payment_id) === signature`
@@ -264,6 +309,22 @@ export const paymentService = {
     tx.razorpayStatus = reason;
     await tx.save();
     await refreshWallet(String(tx.clinicId));
+    
+    // Credit back to user wallet
+    try {
+      const { userService } = await import('../users/user.service');
+      await userService.refundToWallet(String(tx.userId), tx.breakdown.totalPaise, 'Refund for cancelled booking');
+      setImmediate(() => {
+        void notificationService.notifyUser(String(tx.userId), {
+          type: 'booking',
+          title: 'Refund Processed',
+          body: `₹${(tx.breakdown.totalPaise / 100).toFixed(2)} has been refunded to your wallet.`,
+        });
+      });
+    } catch (err) {
+      logger.error({ err, appointmentId }, 'Failed to refund to user wallet');
+    }
+
     return tx;
   },
 
@@ -316,7 +377,9 @@ export const paymentService = {
     paidCount: number;
     currency: string;
   }> {
-    const wallet = await walletService.recomputeWallet(clinicId);
+    // Fast read of the materialised wallet (kept current on every money change)
+    // instead of a full transaction rollup on each earnings-screen open.
+    const wallet = await walletService.getSummary(clinicId);
     return {
       clinicPayablePaise: wallet.clinicPayablePaise,
       settledPaise: wallet.settledPaise,

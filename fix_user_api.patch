@@ -1,0 +1,10 @@
+--- OnChikitsa_user/app/_lib/api.js
++++ OnChikitsa_user/app/_lib/api.js
+@@ -107,2 +107,7 @@
+ 
++export const deviceApi = {
++  register: (token, platform) => api.post('/user/devices', { token, platform }),
++  unregister: (token) => api.post('/user/devices/remove', { token }),
++};
++
+ export const supportApi = {

@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Clock, Calendar, Ticket, Home, Compass, User, AlertCircle,
+  Clock, Calendar, Ticket, Home, Compass, User, AlertCircle, ChevronRight, Clipboard, Check, Star,
   Building, Stethoscope, Tooth, HeartPulse, Sparkles, Brain, Flask,
 } from '../_components/icons';
 import { resolveRoute } from '../_lib/onboarding';
 import { flow } from '../_lib/flow';
 import { getCurrentUser } from '../_lib/auth';
-import { bookingApi, ApiError } from '../_lib/api';
+import { bookingApi, reviewApi, ApiError } from '../_lib/api';
 import { mapBooking } from '../_lib/clinicMap';
 import styles from './bookings.module.css';
 
@@ -19,6 +19,39 @@ const PILL_CLASS = { PENDING_PAYMENT: 'pillPending', BOOKED: 'pillBooked', ARRIV
 // Past outcomes → the badge tint.
 const PAST_CLASS = { completed: 'ok', cancelled: 'cancel', missed: 'miss', incomplete: 'incomplete' };
 const PAST_LABEL = { completed: 'Completed', cancelled: 'Cancelled', missed: 'Missed', incomplete: 'Payment not completed' };
+
+// Copy text to the clipboard, with a execCommand fallback for older WebViews.
+async function copyText(text) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch { /* fall through to the legacy path */ }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch { return false; }
+}
+
+// Tappable appointment ID that copies itself. Inherits the surrounding text style.
+function CopyId({ code }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async (e) => {
+    e.stopPropagation();
+    if (await copyText(code)) { setCopied(true); setTimeout(() => setCopied(false), 1500); }
+  };
+  return (
+    <button type="button" className={styles.copyId} onClick={copy} aria-label={`Copy appointment ID ${code}`}>
+      <span>{code}</span>
+      {copied ? <Check size={14} /> : <Clipboard size={14} />}
+    </button>
+  );
+}
 
 export default function Bookings() {
   const router = useRouter();
@@ -30,6 +63,7 @@ export default function Bookings() {
   const [error, setError] = useState('');
   const [cancelId, setCancelId] = useState('');
   const [cancelErr, setCancelErr] = useState('');
+  const [detail, setDetail] = useState(null); // the past booking shown in the detail sheet
 
   // Fetch both scopes from the backend and map to card shapes. Reused after a
   // cancel and whenever the app returns to the foreground (so a clinic-side
@@ -126,9 +160,11 @@ export default function Bookings() {
         <div className={styles.list}>
           {tab === 'upcoming'
             ? upcoming.map((b) => <UpcomingCard key={b.id} b={b} onCancel={cancel} cancelling={cancelId === b.id} onComplete={completePayment} />)
-            : past.map((b) => <PastCard key={b.id} b={b} />)}
+            : past.map((b) => <PastCard key={b.id} b={b} onOpen={setDetail} />)}
         </div>
       )}
+
+      {detail && <BookingDetail b={detail} onClose={() => setDetail(null)} />}
 
       <nav className={styles.tabbar}>
         <button className={styles.tab} onClick={() => router.push('/dashboard')}><Home size={22} /> Home</button>
@@ -155,7 +191,7 @@ function UpcomingCard({ b, onCancel, cancelling, onComplete }) {
         <div className={styles.hBody}>
           <h2 className={styles.name}>{b.clinic}</h2>
           {b.area && <p className={styles.meta}>{b.area}</p>}
-          {b.code && <p className={styles.apptId}>ID · {b.code}</p>}
+          {b.code && <p className={styles.apptId}>ID · <CopyId code={b.code} /></p>}
         </div>
         <div className={styles.headRight}>
           <span className={`${styles.stPill} ${styles.stPillLg} ${b.skipped ? styles.pillSkipped : (styles[PILL_CLASS[b.status]] || '')}`}>
@@ -193,6 +229,10 @@ function UpcomingCard({ b, onCancel, cancelling, onComplete }) {
         <p className={styles.skipNote}>The clinic moved you further down the queue for now — please stay nearby, you’ll be called again shortly.</p>
       )}
 
+      {!b.pendingPayment && b.tokenValidUntilLabel && (
+        <p className={styles.rebookNote}>Free re-book with ID {b.code} until {b.tokenValidUntilLabel}.</p>
+      )}
+
       {b.pendingPayment ? (
         <>
           <p className={styles.pendingNote}>Payment not completed yet — finish paying to confirm this slot.</p>
@@ -217,10 +257,10 @@ function UpcomingCard({ b, onCancel, cancelling, onComplete }) {
   );
 }
 
-function PastCard({ b }) {
+function PastCard({ b, onOpen }) {
   const Glyph = GLYPHS[b.glyph] || Building;
   return (
-    <article className={styles.pastCard}>
+    <button type="button" className={styles.pastCard} onClick={() => onOpen(b)} aria-label={`View ${b.clinic} booking details`}>
       <span className={`${styles.pastLogo} ${styles[b.g]}`}><Glyph size={24} /></span>
       <div className={styles.pastBody}>
         <h2 className={styles.pastName}>{b.clinic}</h2>
@@ -229,7 +269,128 @@ function PastCard({ b }) {
       <span className={`${styles.pastBadge} ${styles[PAST_CLASS[b.outcome]] || styles.ok}`}>
         {PAST_LABEL[b.outcome] || b.statusLabel}
       </span>
-    </article>
+      <ChevronRight size={18} className={styles.pastChev} />
+    </button>
+  );
+}
+
+// Tap a past booking → a bottom sheet with the full record.
+function BookingDetail({ b, onClose }) {
+  const Glyph = GLYPHS[b.glyph] || Building;
+  const demo = [b.age != null ? `${b.age} yrs` : null, b.gender].filter(Boolean).join(' · ');
+  const rows = [
+    ['Appointment ID', <CopyId key="code" code={b.code} />],
+    ['Token', b.token ? `#${b.token}` : '—'],
+    ['Status', PAST_LABEL[b.outcome] || b.statusLabel],
+    ['Date', b.dateLabel],
+    ['Time', b.timeLabel],
+    ['Patient', b.patient],
+    demo ? ['Age / Gender', demo] : null,
+    b.phone ? ['Phone', b.phone] : null,
+    b.reason ? ['Reason', b.reason] : null,
+    b.area ? ['Location', b.area] : null,
+    b.cancelledBy ? ['Cancelled by', b.cancelledBy === 'CLINIC' ? 'Clinic' : 'You'] : null,
+  ].filter(Boolean);
+  return (
+    <div className={styles.sheetWrap} role="dialog" aria-modal="true" aria-label="Booking details">
+      <button type="button" className={styles.sheetBackdrop} aria-label="Close" onClick={onClose} />
+      <div className={styles.sheet}>
+        <span className={styles.sheetGrip} aria-hidden="true" />
+        <div className={styles.sheetHead}>
+          <span className={`${styles.sheetLogo} ${styles[b.g]}`}><Glyph size={26} /></span>
+          <div className={styles.sheetHeadBody}>
+            <h2 className={styles.sheetTitle}>{b.clinic}</h2>
+            {b.area && <p className={styles.sheetSub}>{b.area}</p>}
+          </div>
+          <span className={`${styles.pastBadge} ${styles[PAST_CLASS[b.outcome]] || styles.ok}`}>
+            {PAST_LABEL[b.outcome] || b.statusLabel}
+          </span>
+        </div>
+        <dl className={styles.sheetRows}>
+          {rows.map(([k, v]) => (
+            <div key={k} className={styles.sheetRow}>
+              <dt className={styles.sheetKey}>{k}</dt>
+              <dd className={styles.sheetVal}>{v}</dd>
+            </div>
+          ))}
+        </dl>
+        {b.tokenValidUntilLabel && b.outcome === 'completed' && (
+          <p className={styles.rebookNote}>Free re-book with ID {b.code} until {b.tokenValidUntilLabel}.</p>
+        )}
+        {b.outcome === 'completed' && <RateVisit b={b} />}
+        <button className={styles.sheetClose} onClick={onClose}>Close</button>
+      </div>
+    </div>
+  );
+}
+
+// Rate a completed visit (1–5 stars + optional feedback). Prefills the patient's
+// existing review if they already rated this appointment, so re-opening edits it.
+// Anonymous end-to-end: the backend never associates the review back to the patient
+// in any response.
+function RateVisit({ b }) {
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [saved, setSaved] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const mine = await reviewApi.mine(b.id);
+        if (!cancelled && mine) { setRating(mine.rating || 0); setComment(mine.comment || ''); setSaved(true); }
+      } catch { /* no existing review — fresh form */ }
+    })();
+    return () => { cancelled = true; };
+  }, [b.id]);
+
+  const submit = async () => {
+    if (!rating || busy) return;
+    setBusy(true); setErr('');
+    try {
+      await reviewApi.submit(b.id, { rating, comment: comment.trim() || undefined });
+      setSaved(true);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Could not save your rating. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={styles.rate}>
+      <p className={styles.rateTitle}>{saved ? 'Your rating' : 'Rate your visit'}</p>
+      <div className={styles.rateStars} role="radiogroup" aria-label="Rating out of 5">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            className={styles.rateStar}
+            aria-label={`${n} star${n > 1 ? 's' : ''}`}
+            aria-checked={n === rating}
+            role="radio"
+            onClick={() => setRating(n)}
+            style={{ color: n <= rating ? '#f5a623' : '#d4d4db' }}
+          >
+            <Star size={30} />
+          </button>
+        ))}
+      </div>
+      <textarea
+        className={styles.rateText}
+        value={comment}
+        maxLength={1000}
+        onChange={(e) => setComment(e.target.value)}
+        placeholder="Share a little about your visit (optional)"
+      />
+      {err && <p className={styles.rateErr} role="alert">{err}</p>}
+      {saved && !err && <p className={styles.rateOk}>Thanks — your feedback is saved.</p>}
+      <button className={styles.payBtn} onClick={submit} disabled={!rating || busy}>
+        {busy ? 'Saving…' : saved ? 'Update rating' : 'Submit rating'}
+      </button>
+    </div>
   );
 }
 

@@ -18,6 +18,7 @@ import { revokeFirebaseUser } from '../../config/firebase';
 import { auditService } from '../audit/audit.service';
 import { userRepository, type UserListFilters } from './user.repository';
 import { type UserDoc } from './user.model';
+import { WalletTransaction } from './walletTransaction.model';
 import type { AuthActor } from '../../types/auth';
 import type { AdminUpdateUserBody, RegisterUserBody, UpdateProfileBody } from './user.validation';
 
@@ -68,6 +69,105 @@ export const userService = {
       userAgent: ctx.userAgent,
     });
     return user;
+  },
+
+  async refundToWallet(id: string, amountPaise: number, description: string, ctx: Ctx = {}): Promise<void> {
+    await runInTransaction(async (session) => {
+      const user = await userRepository.findById(id, session);
+      if (!user) throw new NotFoundError(ERROR_CODES.USER_NOT_FOUND, 'User not found');
+      user.walletBalancePaise = (user.walletBalancePaise || 0) + amountPaise;
+      await user.save({ session: session ?? undefined });
+      await WalletTransaction.create([{
+        userId: user._id,
+        amountPaise,
+        type: 'CREDIT',
+        description
+      }], { session: session ?? undefined });
+    }, ctx);
+  },
+
+  async fundWallet(actor: AuthActor, id: string, amountPaise: number, message?: string, ctx: Ctx = {}): Promise<{ walletBalancePaise: number; walletBalanceRupees: number; transaction: any }> {
+    return runInTransaction(async (session) => {
+      const user = await userRepository.findById(id, session);
+      if (!user) throw new NotFoundError(ERROR_CODES.USER_NOT_FOUND, 'User not found');
+
+      user.walletBalancePaise = (user.walletBalancePaise || 0) + amountPaise;
+      await user.save({ session: session ?? undefined });
+
+      const transaction = await WalletTransaction.create([{
+        userId: user._id,
+        amountPaise,
+        type: 'CREDIT',
+        description: message || 'Wallet funded by admin'
+      }], { session: session ?? undefined });
+
+      await auditService.recordForActor({
+        actor,
+        action: AUDIT_ACTIONS.USER_UPDATED,
+        targetType: TARGET_TYPE.USER,
+        targetId: user._id,
+        targetName: user.name,
+        description: `Funded wallet for user ${user.name} by ${amountPaise} paise`,
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+        session
+      });
+
+      return {
+        walletBalancePaise: user.walletBalancePaise,
+        walletBalanceRupees: user.walletBalancePaise / 100,
+        transaction: transaction[0]
+      };
+    });
+  },
+
+  async debitWallet(actor: AuthActor, id: string, amountPaise: number, message?: string, ctx: Ctx = {}): Promise<{ walletBalancePaise: number; walletBalanceRupees: number; transaction: any }> {
+    return runInTransaction(async (session) => {
+      const user = await userRepository.findById(id, session);
+      if (!user) throw new NotFoundError(ERROR_CODES.USER_NOT_FOUND, 'User not found');
+
+      if ((user.walletBalancePaise || 0) < amountPaise) {
+        throw new ConflictError(ERROR_CODES.CONFLICT, 'Insufficient wallet balance');
+      }
+
+      user.walletBalancePaise = (user.walletBalancePaise || 0) - amountPaise;
+      await user.save({ session: session ?? undefined });
+
+      const transaction = await WalletTransaction.create([{
+        userId: user._id,
+        amountPaise,
+        type: 'DEBIT',
+        description: message || 'Wallet debited by admin'
+      }], { session: session ?? undefined });
+
+      await auditService.recordForActor({
+        actor,
+        action: AUDIT_ACTIONS.USER_UPDATED,
+        targetType: TARGET_TYPE.USER,
+        targetId: user._id,
+        targetName: user.name,
+        description: `Debited wallet for user ${user.name} by ${amountPaise} paise`,
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+        session
+      });
+
+      return {
+        walletBalancePaise: user.walletBalancePaise,
+        walletBalanceRupees: user.walletBalancePaise / 100,
+        transaction: transaction[0]
+      };
+    });
+  },
+
+  async getWalletTransactions(id: string, page?: number, limit?: number): Promise<{ items: any[]; pagination: PaginationMeta }> {
+    const { page: p, limit: l, skip } = resolvePagination(page, limit);
+    const filter = { userId: new Types.ObjectId(id) };
+    const [items, total] = await Promise.all([
+      WalletTransaction.find(filter).sort({ createdAt: -1 }).skip(skip).limit(l).lean(),
+      WalletTransaction.countDocuments(filter)
+    ]);
+    return { items, pagination: buildPaginationMeta(p, l, total) };
   },
 
   /**

@@ -34,8 +34,10 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/faqs', label: 'FAQs', Icon: FaqIcon },
   { href: '/transactions', label: 'Transactions', Icon: PaymentsIcon },
   { href: '/wallet', label: 'Wallet', Icon: WalletIcon },
+  { href: '/notifications', label: 'Notifications', Icon: AuditIcon },
   { href: '/audit-logs', label: 'Audit Logs', Icon: AuditIcon },
   { href: '/settings', label: 'Settings', Icon: SettingsIcon },
+  { href: '/legal', label: 'Legal Policies', Icon: AuditIcon },
 ];
 
 interface SidebarProps {

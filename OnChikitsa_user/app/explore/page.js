@@ -37,6 +37,15 @@ export default function Explore() {
     return () => window.removeEventListener('focus', read);
   }, []);
 
+  // Seed the search from a ?specialty= deep-link (e.g. a dashboard category tap).
+  // Read from the URL directly so static export needs no Suspense boundary.
+  useEffect(() => {
+    try {
+      const sp = new URLSearchParams(window.location.search).get('specialty');
+      if (sp) setQuery(sp);
+    } catch { /* no-op */ }
+  }, []);
+
   // Fast auth gate + onboarding guard (the clinic API needs a signed-in token).
   useEffect(() => {
     let cancelled = false;
@@ -125,8 +134,12 @@ export default function Explore() {
                 const Glyph = GLYPHS[c.glyph] || Building;
                 return (
                   <button key={c.id} className={styles.item} onClick={() => open(c.id)}>
-                    <div className={`${styles.logo} ${styles[c.g]}`}>
-                      <Glyph size={26} />
+                    <div className={`${styles.logo} ${!c.logo ? styles[c.g] : ''}`}>
+                      {c.logo ? (
+                        <img src={c.logo} alt="" className={styles.imgLogo} />
+                      ) : (
+                        <Glyph size={26} />
+                      )}
                     </div>
                     <div className={styles.body}>
                       <p className={styles.name}>{c.name}</p>
@@ -141,9 +154,14 @@ export default function Explore() {
                         )}
                       </div>
                     </div>
-                    <span className={`${styles.badge} ${styles[STATUS_CLASS[c.status]]}`}>
-                      {STATUS_LABEL[c.status]}
-                    </span>
+                    <div className={styles.rightWrap}>
+                      {c.ratingAvg > 0 && (
+                        <span className={styles.ratingBadge}>★ {c.ratingAvg.toFixed(1)}</span>
+                      )}
+                      <span className={`${styles.badge} ${styles[STATUS_CLASS[c.status]]}`}>
+                        {STATUS_LABEL[c.status]}
+                      </span>
+                    </div>
                   </button>
                 );
               })}

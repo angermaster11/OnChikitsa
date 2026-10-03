@@ -39,6 +39,8 @@ export const ERROR_CODES = {
   SLOT_UNAVAILABLE: 'SLOT_UNAVAILABLE',   // date closed / holiday / past / not a real slot
   SLOT_FULL: 'SLOT_FULL',                 // slot at capacity
   ALREADY_BOOKED: 'ALREADY_BOOKED',       // same patient already holds this slot
+  TOKEN_EXPIRED_BOOKING: 'TOKEN_EXPIRED_BOOKING', // the appointment code's free-rebook window has passed
+  REBOOK_NOT_ELIGIBLE: 'REBOOK_NOT_ELIGIBLE', // code not eligible for a free re-book (other clinic / no validity)
 
   // Payments (Razorpay — single-gateway collection; clinic share settled offline)
   PAYMENT_NOT_CONFIGURED: 'PAYMENT_NOT_CONFIGURED', // 503 — Razorpay keys not set

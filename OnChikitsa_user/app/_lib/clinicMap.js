@@ -120,6 +120,9 @@ export function mapClinicCard(raw) {
     logo: raw.logo || '',
     glyph: glyphFor(raw),
     g: gradientFor(id),
+    // Denormalized rating from the backend (0 when a clinic has no reviews yet).
+    ratingAvg: raw.ratingAvg ?? 0,
+    ratingCount: raw.ratingCount ?? 0,
   };
 }
 
@@ -149,6 +152,8 @@ export function mapClinicDetail(detail) {
     consultationFee: c.consultationFee ?? null,
     doctors: (detail.doctors || []).map((d) => ({ id: String(d._id), name: d.name, specialization: d.specialization })),
     doctorsCount: detail.doctorsCount ?? (detail.doctors || []).length,
+    ratingAvg: c.ratingAvg ?? 0,
+    ratingCount: c.ratingCount ?? 0,
   };
 }
 
@@ -201,7 +206,16 @@ export function mapBooking(appt) {
     token: appt.tokenNo,
     status: appt.status,
     statusLabel: STATUS_LABEL[appt.status] || appt.status,
+    // Token expiry for the free re-book window ("YYYY-MM-DD" or null) + a label.
+    tokenValidUntil: appt.tokenValidUntil || null,
+    tokenValidUntilLabel: appt.tokenValidUntil ? dateLabel(appt.tokenValidUntil) : null,
     patient: appt.patient?.name || 'You',
+    // Full patient snapshot + reason for the booking detail card.
+    phone: appt.patient?.phone || '',
+    age: appt.patient?.age ?? null,
+    gender: appt.patient?.gender || '',
+    reason: appt.reason || '',
+    cancelledBy: appt.cancelledBy || null,
     outcome,
     pendingPayment: appt.status === 'PENDING_PAYMENT',
     // The clinic pushed this still-waiting patient to the back of the live queue.

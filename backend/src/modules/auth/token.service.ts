@@ -15,6 +15,7 @@ export const tokenService = {
     const payload: JwtAccessPayload = { sub: adminId, role, type: 'access' };
     return jwt.sign(payload, env.JWT_ACCESS_SECRET, {
       expiresIn: env.ACCESS_TOKEN_EXPIRES_IN,
+      algorithm: 'HS256',
     } as SignOptions);
   },
 
@@ -22,17 +23,20 @@ export const tokenService = {
     const payload: JwtRefreshPayload = { sub: adminId, jti, type: 'refresh' };
     return jwt.sign(payload, env.JWT_REFRESH_SECRET, {
       expiresIn: env.REFRESH_TOKEN_EXPIRES_IN,
+      algorithm: 'HS256',
     } as SignOptions);
   },
 
   verifyAccessToken(token: string): JwtAccessPayload {
-    const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as JwtAccessPayload;
+    // Pin the algorithm so a token cannot be forced to verify under a different
+    // one (defence against algorithm-confusion); our tokens are always HS256.
+    const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET, { algorithms: ['HS256'] }) as JwtAccessPayload;
     if (decoded.type !== 'access') throw new Error('Wrong token type');
     return decoded;
   },
 
   verifyRefreshToken(token: string): JwtRefreshPayload {
-    const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET) as JwtRefreshPayload;
+    const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET, { algorithms: ['HS256'] }) as JwtRefreshPayload;
     if (decoded.type !== 'refresh') throw new Error('Wrong token type');
     return decoded;
   },

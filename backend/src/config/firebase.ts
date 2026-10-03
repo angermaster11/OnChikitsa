@@ -39,16 +39,22 @@ export interface VerifiedFirebaseToken {
 }
 
 /**
- * Verify a Firebase ID token and return the trusted identity. `checkRevoked`
- * enforces token revocation (used for strong session invalidation on ban).
- * Throws if Firebase is not configured or the token is invalid/revoked.
+ * Verify a Firebase ID token and return the trusted identity.
+ *
+ * `checkRevoked` is false: that keeps verification a LOCAL signature check against
+ * cached Google public keys (no per-request network round-trip to Firebase), which
+ * matters on the hot path at scale. Revocation/ban is still enforced every request
+ * by the DB account-status check in firebaseAuth (resolveUserActor/resolveClinicActor),
+ * so a banned account is rejected immediately regardless; only a Firebase-side token
+ * revoke (e.g. password reset) lags until the token naturally expires (≤1h).
+ * Throws if Firebase is not configured or the token is invalid.
  */
 export async function verifyFirebaseIdToken(idToken: string): Promise<VerifiedFirebaseToken> {
   const app = getFirebaseApp();
   if (!app) {
     throw new Error('Firebase Admin SDK is not configured');
   }
-  const decoded = await app.auth().verifyIdToken(idToken, true);
+  const decoded = await app.auth().verifyIdToken(idToken, false);
   return {
     uid: decoded.uid,
     phoneNumber: decoded.phone_number,
@@ -69,4 +75,54 @@ export async function revokeFirebaseUser(uid: string): Promise<void> {
   } catch (err) {
     logger.warn({ err, uid }, 'Failed to revoke Firebase refresh tokens');
   }
+}
+
+export interface PushMessage {
+  title: string;
+  body: string;
+  /** String-only key/values delivered to the client (e.g. a deep-link `route`). */
+  data?: Record<string, string>;
+}
+
+/**
+ * Send a push notification to many device tokens via FCM. Best-effort: no-ops when
+ * Firebase is unconfigured or there are no tokens (so local/dev never throws), and
+ * never rejects — a send failure is logged. Returns the tokens FCM reported as
+ * permanently invalid so the caller can prune them from its store. FCM caps a
+ * multicast at 500 tokens, so we batch.
+ */
+export async function sendPush(
+  tokens: string[],
+  msg: PushMessage,
+): Promise<{ invalidTokens: string[] }> {
+  const app = getFirebaseApp();
+  if (!app || tokens.length === 0) return { invalidTokens: [] };
+
+  const data = msg.data
+    ? Object.fromEntries(Object.entries(msg.data).map(([k, v]) => [k, String(v)]))
+    : undefined;
+  const invalidTokens: string[] = [];
+  const DEAD = new Set([
+    'messaging/registration-token-not-registered',
+    'messaging/invalid-registration-token',
+    'messaging/invalid-argument',
+  ]);
+
+  for (let i = 0; i < tokens.length; i += 500) {
+    const batch = tokens.slice(i, i + 500);
+    try {
+      const res = await app.messaging().sendEachForMulticast({
+        tokens: batch,
+        notification: { title: msg.title, body: msg.body },
+        data,
+        android: { priority: 'high', notification: { channelId: 'default' } },
+      });
+      res.responses.forEach((r, idx) => {
+        if (!r.success && r.error && DEAD.has(r.error.code)) invalidTokens.push(batch[idx]);
+      });
+    } catch (err) {
+      logger.warn({ err }, 'FCM multicast send failed');
+    }
+  }
+  return { invalidTokens };
 }

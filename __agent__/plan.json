@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "title": "map booking, consultation fee, admin, clinic code paths",
+      "status": "in-progress"
+    },
+    {
+      "title": "design token-validation schema and booking flow changes",
+      "status": "pending"
+    },
+    {
+      "title": "implement backend, admin, and clinic UI changes",
+      "status": "pending"
+    },
+    {
+      "title": "run tests and verify affected flows",
+      "status": "pending"
+    }
+  ],
+  "updated_at": "2026-09-30T19:40:27.159Z",
+  "session_id": "01a0f3d4-2554-762b-8ea8-d5f4d45d8e24"
+}

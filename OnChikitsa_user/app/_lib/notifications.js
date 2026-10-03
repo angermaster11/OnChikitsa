@@ -1,51 +1,54 @@
 'use client';
 
-// Notifications shown when the user taps the dashboard bell. No push backend yet,
-// so this generates the list on the client: live entries are derived from the
-// user's real live bookings (queue position), followed by a little demo history.
-// Each item carries an `unread` baseline; the screen crosses it with the read ids
-// stored in flow so the bell's dot and this list agree.
-import { getLiveBookings } from './bookings';
+// The bell / notification list, built from the user's REAL bookings. There is no
+// push backend yet, so this derives honest, actionable items from the appointments
+// the app already fetches (bookingApi.listMine → mapBooking): a reminder for each
+// upcoming visit and a "rate your visit" prompt for each completed one. Pure — the
+// caller passes the mapped bookings so the dashboard bell and the alerts list agree.
+// Each item's `unread` baseline is crossed with the read ids stored in flow.
 import { flow } from './flow';
 
-const TYPES = {
-  reminder: { g: 'blue' },   // appointment / queue reminders
-  booking: { g: 'green' },   // booking status updates
-  health: { g: 'amber' },    // tips, offers, health alerts
-};
+const TONES = { reminder: 'blue', booking: 'green', health: 'amber' };
+const UPCOMING = ['PENDING_PAYMENT', 'BOOKED', 'ARRIVED', 'CONSULTING'];
 
-// Static demo history — always present so the screen is never empty.
-const DEMO = [
-  { id: 'nd-offer', type: 'health', title: 'Free health check-up camp', body: 'CityCare Multispeciality is hosting a free check-up this weekend. Tap to know more.', time: '1d ago', unread: true },
-  { id: 'nd-done', type: 'booking', title: 'Visit completed', body: 'Your appointment at Aarogya Dental Studio is marked completed. Rate your visit.', time: '3d ago', unread: false },
-  { id: 'nd-welcome', type: 'health', title: 'Welcome to OnChikitsa', body: 'Book clinics near you and skip the waiting-room queue.', time: '5d ago', unread: false },
-];
-
-// Turn each live booking into a "your queue is moving" reminder.
-function liveNotifs() {
-  return getLiveBookings().map((b) => {
-    const ahead = Math.max(0, (b.queueNo || 0) - (b.currentNo || 0));
-    return {
-      id: `nb-${b.id}`,
-      type: 'reminder',
-      title: ahead <= 0 ? 'It’s your turn now' : `You’re ${ahead} away in the queue`,
-      body: `${b.clinic} · now serving #${b.currentNo}, your token is #${b.queueNo}.`,
-      time: 'Just now',
-      unread: true,
-    };
-  });
+function itemsFor(bookings) {
+  const out = [];
+  for (const b of bookings || []) {
+    if (b.outcome === 'completed') {
+      out.push({
+        id: `nb-done-${b.id}`,
+        type: 'booking',
+        title: `Visit completed at ${b.clinic}`,
+        body: 'Tap to rate your visit and share feedback.',
+        time: b.dateLabel || b.date || '',
+        unread: true,
+      });
+    } else if (UPCOMING.includes(b.status)) {
+      const when = [b.dateLabel || b.date, b.timeLabel].filter(Boolean).join(' · ');
+      out.push({
+        id: `nb-up-${b.id}`,
+        type: 'reminder',
+        title: `Upcoming appointment at ${b.clinic}`,
+        body: `${when}${b.token ? ` · token #${b.token}` : ''}.`,
+        time: b.dateLabel || '',
+        unread: true,
+      });
+    }
+  }
+  return out;
 }
 
-// Full list, newest first, with `unread` reduced by whatever the user has seen.
-export function getNotifications() {
+/** Build the notification list from the user's real bookings, applying read state. */
+export function buildNotifications(bookings) {
   const read = new Set(flow.getReadNotifs());
-  return [...liveNotifs(), ...DEMO].map((n) => ({
+  return itemsFor(bookings).map((n) => ({
     ...n,
-    tone: (TYPES[n.type] || TYPES.health).g,
+    tone: TONES[n.type] || TONES.health,
     unread: n.unread && !read.has(n.id),
   }));
 }
 
-export function unreadCount() {
-  return getNotifications().filter((n) => n.unread).length;
+/** Count of still-unread notifications derived from the given bookings. */
+export function unreadCountFrom(bookings) {
+  return buildNotifications(bookings).filter((n) => n.unread).length;
 }

@@ -37,6 +37,7 @@ export default function ClinicProfile() {
   const [stateName, setStateName] = useState('');
   const [pincode, setPincode] = useState('');
   const [fee, setFee] = useState('');
+  const [validity, setValidity] = useState('');
   const [avg, setAvg] = useState('');
   const [specs, setSpecs] = useState([]);
 
@@ -69,6 +70,7 @@ export default function ClinicProfile() {
         const a = me.address || {};
         setLine(a.line || ''); setCity(a.city || ''); setStateName(a.state || ''); setPincode(a.pincode || '');
         setFee(me.consultationFee != null ? String(me.consultationFee) : '');
+        setValidity(me.tokenValidityDays != null ? String(me.tokenValidityDays) : '');
         setAvg(me.averageConsultationTime ? String(me.averageConsultationTime) : '');
         setSpecs(Array.isArray(me.specialties) ? me.specialties : []);
         setLogo(me.logo || ''); setBanner(me.banner || '');
@@ -158,6 +160,8 @@ export default function ClinicProfile() {
       if (coords) patch.location = coords;
       const feeN = parseInt(digitsOnly(fee), 10);
       if (Number.isFinite(feeN) && feeN >= 0) patch.consultationFee = feeN;
+      const validN = parseInt(digitsOnly(validity), 10);
+      if (Number.isFinite(validN) && validN >= 0) patch.tokenValidityDays = validN;
       const avgN = parseInt(avg, 10);
       if (Number.isFinite(avgN) && avgN > 0) patch.averageConsultationTime = avgN;
       if (specs.length) patch.specialties = specs;
@@ -339,6 +343,15 @@ export default function ClinicProfile() {
                   <span className={styles.selchev}><ChevronDown size={18} /></span>
                 </div>
               </div>
+            </div>
+
+            <div className={styles.group}>
+              <label className={styles.label} htmlFor="p-validity">Token validity (days)</label>
+              <div className={styles.inputwrap}>
+                <input id="p-validity" className={styles.input} inputMode="numeric" value={validity}
+                  onChange={(e) => setValidity(digitsOnly(e.target.value).slice(0, 3))} placeholder="e.g. 7 (0 = off)" />
+              </div>
+              <p className={styles.hint}>Within this many days of a paid visit, the patient can re-book free using their appointment ID. 0 or blank = no free re-book.</p>
             </div>
 
             {phaseText && <p className={styles.phase}>{phaseText}</p>}

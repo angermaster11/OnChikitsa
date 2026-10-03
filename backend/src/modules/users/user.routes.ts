@@ -5,7 +5,7 @@ import { firebaseAuth, firebaseIdentity } from '../../middleware/firebaseAuth';
 import { authorize } from '../../middleware/authorize';
 import { ROLES } from '../../utils/constants';
 import { PERMISSIONS } from '../../rbac/permissions';
-import { idParamSchema } from '../../utils/validators';
+import { idParamSchema, paginationQuerySchema } from '../../utils/validators';
 import { userController } from './user.controller';
 import {
   listUsersQuerySchema,
@@ -13,6 +13,7 @@ import {
   banSchema,
   registerUserSchema,
   updateProfileSchema,
+  fundWalletSchema,
 } from './user.validation';
 
 /** Admin-facing user management — mounted at /api/v1/admin/users. */
@@ -50,6 +51,18 @@ adminUserRoutes.delete(
   validate({ params: idParamSchema }),
   userController.remove,
 );
+adminUserRoutes.post(
+  '/:id/wallet/fund',
+  authorize(PERMISSIONS.USER_UPDATE),
+  validate({ params: idParamSchema, body: fundWalletSchema }),
+  userController.fundWallet,
+);
+adminUserRoutes.post(
+  '/:id/wallet/debit',
+  authorize(PERMISSIONS.USER_UPDATE),
+  validate({ params: idParamSchema, body: fundWalletSchema }),
+  userController.debitWallet,
+);
 
 /** App-facing self endpoints — mounted at /api/v1/user. */
 export const userAppRoutes = Router();
@@ -61,6 +74,8 @@ userAppRoutes.post(
 );
 userAppRoutes.get('/me', firebaseAuth('USER'), userController.me);
 userAppRoutes.patch('/me', firebaseAuth('USER'), validate({ body: updateProfileSchema }), userController.updateMe);
+userAppRoutes.get('/wallet', firebaseAuth('USER'), userController.getWallet);
+userAppRoutes.get('/wallet/transactions', firebaseAuth('USER'), validate({ query: paginationQuerySchema }), userController.getWalletTransactions);
 
 // Favourite clinics (toggle + read). All scoped to the caller (Firebase USER).
 userAppRoutes.get('/favorites', firebaseAuth('USER'), userController.listFavorites);

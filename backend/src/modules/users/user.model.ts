@@ -47,6 +47,7 @@ export interface UserDoc extends Document<Types.ObjectId> {
   /** Clinics this patient has favourited (toggled from the app). */
   favoriteClinics: Types.ObjectId[];
   status: UserStatus;
+  walletBalancePaise: number;
   lastLoginAt?: Date;
   bannedAt?: Date | null;
   bannedBy?: Types.ObjectId | null;
@@ -113,6 +114,7 @@ const userSchema = new Schema<UserDoc>(
       default: USER_STATUS.ACTIVE,
       required: true,
     },
+    walletBalancePaise: { type: Number, default: 0 },
     lastLoginAt: { type: Date },
     bannedAt: { type: Date, default: null },
     bannedBy: { type: Schema.Types.ObjectId, ref: 'Admin', default: null },

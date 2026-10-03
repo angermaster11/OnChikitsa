@@ -44,6 +44,14 @@ export interface AppointmentDoc extends Document<Types.ObjectId> {
   /** Human-readable, globally-unique booking reference (e.g. "OC-20260930-0007").
    *  Assigned at confirmation alongside tokenNo; absent on a PENDING_PAYMENT hold. */
   appointmentCode?: string | null;
+  /** "YYYY-MM-DD" the token stays valid for a free re-book (booking date + clinic
+   *  tokenValidityDays). Anchored to the paid visit: a free re-book inherits this,
+   *  it never extends. null = clinic has no validity window (no free re-book). */
+  tokenValidUntil?: string | null;
+  /** For a free re-book: the ORIGINAL (paid) appointment this one derives from. */
+  rebookOf?: Types.ObjectId | null;
+  /** For a free re-book: the appointment code the patient entered to claim it. */
+  originalAppointmentCode?: string | null;
   status: AppointmentStatus;
   patient: PatientSnapshot;
   reason?: string;
@@ -53,6 +61,12 @@ export interface AppointmentDoc extends Document<Types.ObjectId> {
   paymentId?: Types.ObjectId | null;
   /** For a PENDING_PAYMENT hold: when the reserved seat lapses if unpaid. Cleared on confirm. */
   holdExpiresAt?: Date | null;
+  /** Atomic overbooking guard. While this booking occupies a seat it carries a
+   *  unique key `"<clinicId>:<date>:<slotStart>:<seatNo>"`; a partial-unique index
+   *  turns two concurrent claims on the same seat into an E11000 (one wins). Set to
+   *  null when the seat is released (cancel / lapsed hold / failed payment), which
+   *  drops it from the partial index so the seat is claimable again. */
+  seatKey?: string | null;
   cancelledAt?: Date | null;
   cancelledBy?: 'USER' | 'CLINIC' | null;
   /** When the clinic last "skipped" this patient in the live queue: the booking
@@ -84,6 +98,9 @@ const appointmentSchema = new Schema<AppointmentDoc>(
     // No default: left ABSENT (not null) on a hold so the sparse/partial unique
     // index below only indexes real, assigned codes — many missing fields never collide.
     appointmentCode: { type: String },
+    tokenValidUntil: { type: String, default: null },
+    rebookOf: { type: Schema.Types.ObjectId, ref: 'Appointment', default: null },
+    originalAppointmentCode: { type: String, default: null },
     status: {
       type: String,
       enum: Object.values(APPOINTMENT_STATUS),
@@ -96,6 +113,9 @@ const appointmentSchema = new Schema<AppointmentDoc>(
     clinicArea: { type: String },
     paymentId: { type: Schema.Types.ObjectId, ref: 'Transaction', default: null },
     holdExpiresAt: { type: Date, default: null },
+    // Null (not a string) while no seat is held, so the partial-unique index below
+    // only indexes active seat claims — released seats never collide on null.
+    seatKey: { type: String, default: null },
     cancelledAt: { type: Date, default: null },
     cancelledBy: { type: String, enum: ['USER', 'CLINIC'], default: null },
     skippedAt: { type: Date, default: null },
@@ -124,5 +144,12 @@ appointmentSchema.index(
 appointmentSchema.index({ userId: 1, createdAt: -1 });
 // Sweep/occupancy of live PENDING_PAYMENT holds (bounded by holdExpiresAt).
 appointmentSchema.index({ status: 1, holdExpiresAt: 1 });
+// Atomic overbooking guard: at most one active claim per "clinic:date:slot:seatNo".
+// Partial so only rows actually holding a seat (string seatKey) are constrained —
+// released seats (seatKey:null) drop out and can be reclaimed.
+appointmentSchema.index(
+  { seatKey: 1 },
+  { unique: true, partialFilterExpression: { seatKey: { $type: 'string' } } },
+);
 
 export const Appointment: Model<AppointmentDoc> = model<AppointmentDoc>('Appointment', appointmentSchema);

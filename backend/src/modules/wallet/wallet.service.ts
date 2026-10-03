@@ -87,6 +87,25 @@ function zeroSummary(clinicId: string, clinicName: string): WalletSummary {
   };
 }
 
+/** Map a materialised Wallet doc to the summary shape clients consume. */
+function summaryFromWalletDoc(w: WalletDoc): WalletSummary {
+  return {
+    clinicId: String(w.clinicId),
+    clinicName: w.clinicName,
+    totalCollectedPaise: w.totalCollectedPaise,
+    clinicPayablePaise: w.clinicPayablePaise,
+    platformSharePaise: w.platformSharePaise,
+    pendingPaise: w.pendingPaise,
+    settledPaise: w.settledPaise,
+    paidCount: w.paidCount,
+    pendingCount: w.pendingCount,
+    settledCount: w.settledCount,
+    transactionCount: w.transactionCount,
+    lastTransactionAt: w.lastTransactionAt ?? null,
+    lastSettledAt: w.lastSettledAt ?? null,
+  };
+}
+
 function billFromRollup(r: WalletRollup | null): WalletBill {
   return {
     consultationFeePaise: r?.consultationFeePaise ?? 0,
@@ -153,6 +172,20 @@ export const walletService = {
     }
     await persist(summary);
     return summary;
+  },
+
+  /**
+   * Fast read of a clinic's wallet for the clinic app's earnings screen: serve the
+   * materialised Wallet doc directly (it is kept current by `recomputeWallet` on
+   * every money-affecting change), falling back to a full recompute only when no
+   * doc exists yet. Avoids the O(N) transaction rollup on every earnings read.
+   */
+  async getSummary(clinicId: string): Promise<WalletSummary> {
+    if (Types.ObjectId.isValid(clinicId)) {
+      const doc = await Wallet.findOne({ clinicId: new Types.ObjectId(clinicId) });
+      if (doc) return summaryFromWalletDoc(doc);
+    }
+    return this.recomputeWallet(clinicId);
   },
 
   /** Admin: every clinic that has at least one transaction, most-owed first. */

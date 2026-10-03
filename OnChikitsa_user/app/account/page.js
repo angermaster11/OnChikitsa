@@ -45,7 +45,6 @@ export default function Account() {
     const { dial, number } = flow.getPhoneParts();
     setPhone(number ? `${dial} ${number}` : '');
   }, []);
-  // MARKER
 
   // Same guard as the rest of the authed app, plus a fast local auth gate: never
   // render personal details to a logged-out user, and refresh the form from the
@@ -111,13 +110,12 @@ export default function Account() {
       // Don't leave the screen — on return the DB sync would wipe the local edit,
       // so a failed save must be surfaced, not swallowed.
       setSaving(false);
-      setError(err?.message || 'Save nahi hua — connection check karke dobara try karo.');
+      setError(err?.message || 'Could not save — please check your connection and try again.');
       return;
     }
     setSaving(false);
     router.back();
   };
-  // RETURN
   if (checking) return <main className={styles.screen} aria-busy="true" />;
   return (
     <main className={styles.screen}>

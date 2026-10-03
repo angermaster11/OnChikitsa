@@ -52,6 +52,10 @@ export const PERMISSIONS = {
 
   AUDIT_LOG_VIEW: 'AUDIT_LOG_VIEW',
   DASHBOARD_VIEW: 'DASHBOARD_VIEW',
+
+  // Push notifications / broadcasts (admin-sent).
+  NOTIFICATION_SEND: 'NOTIFICATION_SEND',
+  NOTIFICATION_VIEW: 'NOTIFICATION_VIEW',
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -86,6 +90,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     PERMISSIONS.WALLET_SETTLE,
     PERMISSIONS.AUDIT_LOG_VIEW,
     PERMISSIONS.DASHBOARD_VIEW,
+    PERMISSIONS.NOTIFICATION_SEND,
+    PERMISSIONS.NOTIFICATION_VIEW,
   ],
 
   // Support gets read-only visibility by default; extra powers must be granted

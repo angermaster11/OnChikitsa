@@ -125,6 +125,7 @@ export default function ClinicSetup() {
   const [bannerPct, setBannerPct] = useState(0);
   const [fee, setFee] = useState('');
   const [avg, setAvg] = useState('');
+  const [validity, setValidity] = useState('');
 
   const logoInput = useRef(null);
   const bannerInput = useRef(null);
@@ -280,6 +281,7 @@ export default function ClinicSetup() {
       if (Number(fee) > 0) payload.consultationFee = Number(fee);
       const tv = TIMES.find((t) => t.label === avg);
       if (tv) payload.averageConsultationTime = tv.value;
+      if (Number(validity) >= 0 && validity !== '') payload.tokenValidityDays = Number(validity);
 
       await clinicApi.register(payload);
 
@@ -538,6 +540,14 @@ export default function ClinicSetup() {
                 </select>
                 <span className={styles.selchev}><ChevronDown size={18} /></span>
               </div>
+            </div>
+            <div className={styles.group}>
+              <label className={styles.label} htmlFor="validity">Token validity (days)</label>
+              <div className={styles.inputwrap}>
+                <input id="validity" className={styles.input} inputMode="numeric" placeholder="e.g. 7 (0 = off)"
+                  value={validity} onChange={(e) => setValidity(e.target.value.replace(/\D/g, '').slice(0, 3))} />
+              </div>
+              <span className={styles.hint}>Days a paid visit&apos;s token stays valid for a free re-book using the appointment ID. Leave blank or 0 to disable.</span>
             </div>
           </>
         )}

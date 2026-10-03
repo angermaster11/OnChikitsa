@@ -43,6 +43,7 @@ export interface PriceBreakdown {
   gstBase: GstBase;
   gstPaise: number;
   totalPaise: number;
+  walletDeductionPaise?: number;
   /** The clinic's share (fee − commission); settled to the clinic offline by the admin. */
   clinicAmountPaise: number;
   /** Amount retained by the platform (derived: total − clinic). */

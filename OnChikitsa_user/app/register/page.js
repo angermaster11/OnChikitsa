@@ -18,6 +18,11 @@ const poppins = Poppins({
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
+// Legal links are set per-deployment via env (left unset → inert '#').
+const TERMS_URL = process.env.NEXT_PUBLIC_TERMS_URL || '#';
+const PRIVACY_URL = process.env.NEXT_PUBLIC_PRIVACY_URL || '#';
+const extLink = (href) => (href && href !== '#' ? { href, target: '_blank', rel: 'noreferrer' } : { href: '#' });
+
 export default function Register() {
   const router = useRouter();
   const [phone, setPhone] = useState({ dial: '+91', number: '' });
@@ -132,7 +137,7 @@ export default function Register() {
           </button>
         </form>
         <p className={styles.legal}>
-          By creating an account, you agree to OnChikitsa&apos;s <a href="#">Terms of Use</a> and <a href="#">Privacy Policy</a>.
+          By creating an account, you agree to OnChikitsa&apos;s <a {...extLink(TERMS_URL)}>Terms of Use</a> and <a {...extLink(PRIVACY_URL)}>Privacy Policy</a>.
         </p>
       </div>
     </main>

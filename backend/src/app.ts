@@ -14,16 +14,23 @@ import { apiRouter } from './routes';
 export function createApp(): Application {
   const app = express();
 
-  // Behind a reverse proxy / tunnel — trust the first hop so req.ip and the
-  // rate-limiter key reflect the real client, not the proxy.
-  app.set('trust proxy', 1);
+  // Behind a reverse proxy / tunnel — trust the configured number of hops so
+  // req.ip and the rate-limiter key reflect the real client, not the proxy. The
+  // hop count is env-driven (TRUST_PROXY) so production can set it exactly and a
+  // client can't spoof X-Forwarded-For to defeat the limiter.
+  app.set('trust proxy', env.trustProxy);
 
   // ── Security & parsing ──────────────────────────────────────────────────
   app.use(helmet());
+  // CORS: when origins are wildcard we must NOT also reflect credentials (that
+  // combination lets any site make credentialed cross-origin calls). The apps use
+  // bearer tokens, not cookies, so credentials are only enabled for an explicit
+  // allow-list of origins.
+  const corsWildcard = env.corsOrigins.includes('*');
   app.use(
     cors({
-      origin: env.corsOrigins.includes('*') ? true : env.corsOrigins,
-      credentials: true,
+      origin: corsWildcard ? '*' : env.corsOrigins,
+      credentials: !corsWildcard,
     }),
   );
   // The Razorpay webhook is verified by an HMAC over the EXACT raw request bytes, so

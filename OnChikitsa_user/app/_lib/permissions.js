@@ -15,6 +15,7 @@ function normalize(state) {
   if (state === 'denied') return 'denied';
   return 'prompt'; // 'prompt' | 'prompt-with-rationale' | undefined
 }
+import { deviceApi } from './api';
 
 function webState(flagKey) {
   try {
@@ -163,6 +164,15 @@ export async function requestNotification() {
     }
     const state = normalize(status.receive);
     if (state === 'granted') {
+      PushNotifications.addListener('registration', (token) => {
+        deviceApi.register(token.value, 'android').catch(() => {});
+      });
+      PushNotifications.addListener('pushNotificationReceived', (notification) => {
+        // Show in-app toast or alert if needed
+      });
+      PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+        // Handle tap
+      });
       try {
         await PushNotifications.register();
       } catch {

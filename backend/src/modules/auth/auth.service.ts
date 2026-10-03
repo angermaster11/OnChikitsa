@@ -17,12 +17,31 @@ interface RequestCtx {
   userAgent?: string;
 }
 
+/**
+ * Timing equaliser for the unknown-account path. Verifying a password with Argon2
+ * takes tens of milliseconds; returning immediately for a non-existent email would
+ * make "account exists" distinguishable by response time (user enumeration). We run
+ * one Argon2 verify against a constant throwaway hash so both paths cost the same.
+ * The dummy hash is computed once, lazily, and cached.
+ */
+let dummyHash: string | null = null;
+async function equalizeLoginTiming(password: string): Promise<void> {
+  try {
+    if (!dummyHash) dummyHash = await passwordService.hash('not-a-real-password-timing-equalizer');
+    await passwordService.verify(dummyHash, password);
+  } catch {
+    // never throws — this is only here to burn comparable CPU time
+  }
+}
+
 export const authService = {
   async login({ email, password, ip, userAgent }: LoginInput): Promise<AuthResult> {
     const admin = await Admin.findOne({ email: normalizeEmail(email) }).select('+passwordHash');
 
-    // Unknown account: generic error, no audit noise, no enumeration signal.
+    // Unknown account: generic error, no audit noise, no enumeration signal. Burn
+    // the same Argon2 time a real verify would, so timing can't reveal existence.
     if (!admin) {
+      await equalizeLoginTiming(password);
       logger.warn({ email: normalizeEmail(email) }, 'Login attempt for unknown account');
       throw new UnauthorizedError(ERROR_CODES.INVALID_CREDENTIALS, 'Invalid email or password');
     }

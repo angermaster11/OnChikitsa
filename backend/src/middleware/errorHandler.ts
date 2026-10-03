@@ -3,7 +3,6 @@ import mongoose from 'mongoose';
 import { ZodError } from 'zod';
 import { AppError, ERROR_CODES } from '../utils/errors';
 import { sendError } from '../utils/response';
-import { env } from '../config/env';
 import { logger } from '../config/logger';
 
 /** 404 handler for unmatched routes. */
@@ -44,8 +43,8 @@ export function errorHandler(
     return;
   }
 
-  // Unknown / programmer error: log the full detail server-side, return generic.
+  // Unknown / programmer error: log the full detail server-side, return a generic
+  // message to the client in EVERY environment so internal/DB detail never leaks.
   logger.error({ err }, 'Unhandled error');
-  const message = env.isProd ? 'Something went wrong' : (err as Error)?.message ?? 'Internal error';
-  sendError(res, 500, ERROR_CODES.INTERNAL_ERROR, message);
+  sendError(res, 500, ERROR_CODES.INTERNAL_ERROR, 'Something went wrong');
 }

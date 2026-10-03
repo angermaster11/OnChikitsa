@@ -1,0 +1,13 @@
+--- backend/src/modules/notifications/device.controller.ts
++++ backend/src/modules/notifications/device.controller.ts
+@@ -15,10 +15,10 @@
+   /** POST /user/devices — register (upsert) the caller's FCM token. */
+   register: asyncHandler(async (req: Request, res: Response) => {
+     const actor = requireActor(req);
+     const body = req.body as RegisterDeviceBody;
+-    await deviceTokenRepository.upsert('USER', actor.id, body.token, body.platform ?? 'android');
++    await deviceTokenRepository.upsert(actor.role === 'CLINIC' ? 'CLINIC' : 'USER', actor.id, body.token, body.platform ?? 'android');
+     sendSuccess(res, { registered: true }, 'Device registered');
+   }),
+ 
+   /** POST /user/devices/remove — drop a token (logout / opt-out). */

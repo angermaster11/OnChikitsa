@@ -1,21 +1,12 @@
 'use client';
 
-// Native-shell glue that makes the Capacitor build behave like a real Android
-// app instead of a web page in a frame: it owns the hardware BACK button and the
-// status-bar contrast. Everything is guarded behind isNative() and dynamically
-// imported, so the static-export prerender (and the browser) never touch native
-// plugins. Renders nothing except a transient "press back again to exit" toast.
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { isNative } from '../_lib/auth';
+import { deviceApi } from '../_lib/api';
 
-// Entry / home screens: hardware-back should EXIT the app (double-press), never
-// walk back into the web history — that's the native convention for a root.
 const EXIT_ROUTES = new Set(['/', '/welcome', '/dashboard']);
 
-// Screens whose top strip is a coloured (blue) hero → status-bar icons must be
-// light. Everything else has a white top → dark icons. The bar overlays the page
-// (transparent), matching the app's safe-area layout.
 const LIGHT_ICON_ROUTES = new Set([
   '/welcome', '/login', '/verify', '/register', '/details', '/location', '/notifications',
 ]);
@@ -31,12 +22,23 @@ export default function NativeShell() {
   const [exitHint, setExitHint] = useState(false);
   const backArmed = useRef(false);
 
-  // One-time: draw under the status bar (edge-to-edge) + own the back button.
   useEffect(() => {
     let cancelled = false;
     let backSub;
     (async () => {
       if (!(await isNative())) return;
+
+      try {
+        const { PushNotifications } = await import('@capacitor/push-notifications');
+        await PushNotifications.addListener('registration', (token) => {
+          deviceApi.register(token.value, 'android').catch(() => {});
+        });
+        await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+          const route = action.notification.data?.route;
+          if (route) window.location.href = route;
+        });
+      } catch { /* ignore */ }
+
       try {
         const { StatusBar } = await import('@capacitor/status-bar');
         await StatusBar.setOverlaysWebView({ overlay: true });
@@ -59,14 +61,12 @@ export default function NativeShell() {
     return () => { cancelled = true; if (backSub) backSub.remove(); };
   }, []);
 
-  // Per-route status-bar icon contrast.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (!(await isNative())) return;
       try {
         const { StatusBar, Style } = await import('@capacitor/status-bar');
-        // Style.Dark = light icons (for dark/colour tops); Style.Light = dark icons.
         const style = LIGHT_ICON_ROUTES.has(currentPath()) ? Style.Dark : Style.Light;
         if (!cancelled) await StatusBar.setStyle({ style });
       } catch { /* ignore */ }

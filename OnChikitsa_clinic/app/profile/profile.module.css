@@ -139,6 +139,7 @@
 .row { display: flex; gap: 12px; }
 .row > .group { flex: 1; min-width: 0; }
 .label { display: block; margin: 0 0 9px; font-size: 14.5px; font-weight: 600; color: #1a1d29; }
+.hint { margin: 8px 2px 0; font-size: 12px; line-height: 1.45; color: #7e7c7d; }
 .opt { color: #9aa1ad; font-weight: 500; }
 .inputwrap {
   display: flex;

@@ -3,7 +3,7 @@ import { validate } from '../../middleware/validate';
 import { firebaseAuth } from '../../middleware/firebaseAuth';
 import { idParamSchema } from '../../utils/validators';
 import { appointmentController } from './appointment.controller';
-import { createBookingSchema, listMyBookingsQuerySchema, listClinicAppointmentsQuerySchema, updateAppointmentStatusSchema, skipAppointmentSchema } from './appointment.validation';
+import { createBookingSchema, listMyBookingsQuerySchema, listClinicAppointmentsQuerySchema, updateAppointmentStatusSchema, skipAppointmentSchema, rebookLookupSchema, rebookSchema } from './appointment.validation';
 
 /** Patient booking endpoints — mounted at /api/v1/user/bookings (Firebase USER). */
 export const userBookingRoutes = Router();
@@ -11,6 +11,8 @@ userBookingRoutes.use(firebaseAuth('USER'));
 
 userBookingRoutes.post('/', validate({ body: createBookingSchema }), appointmentController.create);
 userBookingRoutes.get('/', validate({ query: listMyBookingsQuerySchema }), appointmentController.listMine);
+userBookingRoutes.post('/rebook/lookup', validate({ body: rebookLookupSchema }), appointmentController.rebookLookup);
+userBookingRoutes.post('/rebook', validate({ body: rebookSchema }), appointmentController.rebook);
 userBookingRoutes.post('/:id/cancel', validate({ params: idParamSchema }), appointmentController.cancel);
 
 /** Clinic-facing appointment management — mounted at /api/v1/clinic/appointments.

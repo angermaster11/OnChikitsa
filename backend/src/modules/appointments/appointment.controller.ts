@@ -9,6 +9,8 @@ import type {
   ListClinicAppointmentsQuery,
   UpdateAppointmentStatusBody,
   SkipAppointmentBody,
+  RebookBody,
+  RebookLookupBody,
 } from './appointment.validation';
 
 function requireActor(req: Request) {
@@ -34,6 +36,20 @@ export const appointmentController = {
     const actor = requireActor(req);
     const appt = await appointmentService.cancelBooking(actor.id, req.params.id);
     sendSuccess(res, appt, 'Appointment cancelled');
+  }),
+
+  // Free re-book (reuse an existing, still-valid token at ₹0).
+  rebookLookup: asyncHandler(async (req: Request, res: Response) => {
+    const actor = requireActor(req);
+    const { appointmentCode, clinicId } = req.body as RebookLookupBody;
+    const info = await appointmentService.lookupForRebook(actor.id, appointmentCode, clinicId);
+    sendSuccess(res, info, 'Booking found');
+  }),
+
+  rebook: asyncHandler(async (req: Request, res: Response) => {
+    const actor = requireActor(req);
+    const appt = await appointmentService.rebookWithCode(actor.id, req.body as RebookBody);
+    sendSuccess(res, appt, 'Appointment booked', 201);
   }),
 
   // ---- Clinic-facing ----

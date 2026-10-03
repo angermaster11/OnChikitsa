@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, ChevronRight, ChevronDown, Stethoscope,
-  ClipboardList, UserPlus, Users, Calendar, Check, Store, CreditCard,
+  ClipboardList, UserPlus, Users, Calendar, Check, Store, CreditCard, LogOut,
 } from '../_components/icons';
 import { tapLight, notify } from '../_lib/haptic';
-import { clinicApi } from '../_lib/api';
+import { clinicApi, invalidateMe } from '../_lib/api';
+import { signOut } from '../_lib/auth';
+import { flow } from '../_lib/flow';
 import styles from './settings.module.css';
 
 // UI status labels ↔ backend CLINIC_STATUS enum (ACTIVE / CLOSED / BOOKING_FULL).
@@ -38,6 +40,13 @@ const GROUPS = [
     h: 'Payments', s: 'Track what you earn',
     rows: [
       { Ico: CreditCard, t: 'Earnings & Settlements', d: 'Your 90% share and what the platform has settled', r: '/earnings' },
+    ],
+  },
+  {
+    h: 'Legal', s: 'Terms and policies',
+    rows: [
+      { Ico: ClipboardList, t: 'Privacy Policy', d: 'How we handle your data', r: '/legal/privacy' },
+      { Ico: ClipboardList, t: 'Terms & Conditions', d: 'Your agreement with OnChikitsa', r: '/legal/terms' },
     ],
   },
 ];
@@ -82,6 +91,17 @@ export default function ClinicSettings() {
       setSaving(false);
     }
   }
+
+  const logout = () => {
+    if (saving) return;
+    setSaving(true);
+    tapLight();
+    try { invalidateMe(); } catch {}
+    try { flow.logout(); } catch {}
+    try { signOut().catch(() => {}); } catch {}
+    window.location.replace('/login');
+  };
+
   return (
     <main className={styles.root}>
       <header className={styles.top}>
@@ -142,6 +162,17 @@ export default function ClinicSettings() {
             </div>
           </section>
         ))}
+
+        <section className={styles.group} style={{ marginTop: 24 }}>
+          <div className={styles.card}>
+            <button className={styles.row} onClick={logout} disabled={saving} style={{ color: 'var(--danger)' }}>
+              <span className={styles.rowIc} style={{ color: 'var(--danger)' }}><LogOut size={19} /></span>
+              <span className={styles.rowMid}>
+                <span className={styles.rowT} style={{ color: 'var(--danger)' }}>{saving ? 'Logging out...' : 'Log out'}</span>
+              </span>
+            </button>
+          </div>
+        </section>
 
         <p className={styles.ver}>OnChikitsa Clinic · v1.0.0</p>
       </div>

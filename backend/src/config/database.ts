@@ -25,6 +25,8 @@ export async function connectDatabase(): Promise<typeof mongoose> {
     // fresh Atlas URI (which has none) can't accidentally leak data elsewhere.
     dbName: env.MONGODB_DB_NAME,
     serverSelectionTimeoutMS: 10_000,
+    maxPoolSize: env.MONGODB_MAX_POOL_SIZE,
+    minPoolSize: env.MONGODB_MIN_POOL_SIZE,
     autoIndex: !env.isProd, // build indexes automatically outside production
   });
 
@@ -38,7 +40,39 @@ export async function connectDatabase(): Promise<typeof mongoose> {
     logger.error({ err }, 'Payment index reconciliation failed');
   }
 
+  // In production `autoIndex` is off, so declared indexes are not built on their
+  // own. Create them explicitly here (non-destructive — never drops an index).
+  // Outside production `autoIndex` already handles this, so we skip it.
+  if (env.isProd) {
+    await buildIndexes();
+  }
+
   return mongoose;
+}
+
+/**
+ * Create every model's declared indexes on boot. Needed in production where
+ * `autoIndex` is off: without this, a fresh prod DB has none of the ~45 declared
+ * indexes (or the unique constraints on firebaseUid / appointmentCode / admin
+ * email), so every hot query becomes a collection scan and uniqueness is not
+ * enforced. Uses `createIndexes()` (additive — only builds what is missing, never
+ * drops), so it is safe to run on every boot and idempotent once built. Per-model
+ * try/catch keeps one bad model from blocking the rest and never fails startup.
+ */
+async function buildIndexes(): Promise<void> {
+  // Importing the barrel registers all models on the connection.
+  await import('../models');
+  const models = Object.values(mongoose.models);
+  let built = 0;
+  for (const m of models) {
+    try {
+      await m.createIndexes();
+      built += 1;
+    } catch (err) {
+      logger.error({ err, model: m.modelName }, 'Index build failed for model');
+    }
+  }
+  logger.info({ models: built }, 'Index build complete');
 }
 
 /**

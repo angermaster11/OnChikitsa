@@ -77,6 +77,11 @@ export const appointmentRepository = {
     return Appointment.findById(id).session(session ?? null).exec();
   },
 
+  /** Look up a booking by its human-readable code (unique partial index). */
+  findByCode(appointmentCode: string, session?: ClientSession | null): Promise<AppointmentDoc | null> {
+    return Appointment.findOne({ appointmentCode }).session(session ?? null).exec();
+  },
+
   create(data: Partial<AppointmentDoc>, session?: ClientSession | null): Promise<AppointmentDoc> {
     if (session) return Appointment.create([data], { session }).then((docs) => docs[0]);
     return Appointment.create(data);
@@ -161,6 +166,35 @@ export const appointmentRepository = {
   },
 
   /**
+   * The seat numbers already claimed in one slot (any row carrying a seatKey —
+   * including a not-yet-swept lapsed hold, since its key still occupies the unique
+   * index). Used to pick the next free seatNo for the atomic overbooking guard; the
+   * unique index is the real enforcement, this just avoids obvious collisions.
+   */
+  async takenSeatNos(
+    clinicId: string,
+    date: string,
+    slotStart: string,
+    session?: ClientSession | null,
+  ): Promise<Set<number>> {
+    const rows = await Appointment.find({
+      clinicId: new Types.ObjectId(clinicId),
+      date,
+      slotStart,
+      seatKey: { $type: 'string' },
+    })
+      .select('seatKey')
+      .session(session ?? null)
+      .lean<Array<{ seatKey?: string }>>();
+    const taken = new Set<number>();
+    for (const r of rows) {
+      const n = Number(String(r.seatKey).split(':').pop());
+      if (Number.isInteger(n)) taken.add(n);
+    }
+    return taken;
+  },
+
+  /**
    * Release this patient's OWN PENDING_PAYMENT hold(s) in a slot (→ CANCELLED) so a
    * retry after an abandoned/failed checkout isn't blocked by their own still-live
    * hold. Confirmed bookings (BOOKED/ARRIVED/CONSULTING) are untouched — those still
@@ -182,7 +216,7 @@ export const appointmentRepository = {
         slotStart,
         status: APPOINTMENT_STATUS.PENDING_PAYMENT,
       },
-      { $set: { status: APPOINTMENT_STATUS.CANCELLED, cancelledAt: now, cancelledBy: 'USER', holdExpiresAt: null } },
+      { $set: { status: APPOINTMENT_STATUS.CANCELLED, cancelledAt: now, cancelledBy: 'USER', holdExpiresAt: null, seatKey: null } },
       session ? { session } : undefined,
     );
     return res.modifiedCount ?? 0;
@@ -222,7 +256,7 @@ export const appointmentRepository = {
   async expireHolds(now: Date = new Date()): Promise<number> {
     const res = await Appointment.updateMany(
       { status: APPOINTMENT_STATUS.PENDING_PAYMENT, holdExpiresAt: { $lte: now } },
-      { $set: { status: APPOINTMENT_STATUS.CANCELLED, cancelledAt: now, cancelledBy: 'USER', holdExpiresAt: null } },
+      { $set: { status: APPOINTMENT_STATUS.CANCELLED, cancelledAt: now, cancelledBy: 'USER', holdExpiresAt: null, seatKey: null } },
     );
     return res.modifiedCount ?? 0;
   },

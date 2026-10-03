@@ -105,6 +105,7 @@ export const adminUpdateClinicSchema = z
     weeklyHours: weeklyHoursSchema.optional(),
     holidays: holidaysSchema.optional(),
     consultationFee: z.number().min(0).optional(),
+    tokenValidityDays: z.number().int().min(0).max(365).optional(),
     averageConsultationTime: z.number().min(0).optional(),
     // Per-clinic commission override (admin-only). Falls back to the global
     // default when null/absent. NOT part of the clinic self-update schema below.
@@ -136,6 +137,7 @@ export const registerClinicSchema = z
     weeklyHours: weeklyHoursSchema.optional(),
     holidays: holidaysSchema.optional(),
     consultationFee: z.number().min(0).optional(),
+    tokenValidityDays: z.number().int().min(0).max(365).optional(),
     averageConsultationTime: z.number().min(0).optional(),
     banner: z.string().optional(),
     logo: z.string().optional(),

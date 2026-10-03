@@ -1,0 +1,30 @@
+--- OnChikitsa_user/app/_components/NativeShell.js
++++ OnChikitsa_user/app/_components/NativeShell.js
+@@ -9,2 +9,3 @@
+ import { isNative } from '../_lib/auth';
++import { deviceApi } from '../_lib/api';
+ 
+@@ -34,2 +35,25 @@
+       if (!(await isNative())) return;
++      
++      // Push Notifications: listen for the token and route taps. Registration
++      // fires whenever the OS provides a token (which checkPermissions() / 
++      // requestPermissions() in permissions.js kicks off).
++      try {
++        const { PushNotifications } = await import('@capacitor/push-notifications');
++        await PushNotifications.addListener('registration', (token) => {
++          deviceApi.register(token.value, 'android').catch(() => {});
++        });
++        await PushNotifications.addListener('pushNotificationReceived', (notification) => {
++          console.log('Push received in foreground', notification);
++        });
++        await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
++          const route = action.notification.data?.route;
++          if (route) window.location.href = route;
++        });
++        // Tell Capacitor to show alerts when foregrounded
++        await PushNotifications.createChannel({ id: 'default', name: 'Default', importance: 4, visibility: 1 }).catch(()=>null);
++        // Note: setting presentation options is required for foreground popups
++      } catch { /* plugin absent */ }
++
+       try {

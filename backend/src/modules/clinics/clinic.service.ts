@@ -98,6 +98,7 @@ export const clinicService = {
     if (data.weeklyHours !== undefined) clinic.weeklyHours = data.weeklyHours;
     if (data.holidays !== undefined) clinic.holidays = data.holidays;
     if (data.consultationFee !== undefined) clinic.consultationFee = data.consultationFee;
+    if (data.tokenValidityDays !== undefined) clinic.tokenValidityDays = data.tokenValidityDays;
     if (data.averageConsultationTime !== undefined) clinic.averageConsultationTime = data.averageConsultationTime;
     // Per-clinic commission override (admin-only). null clears it → falls back to
     // the global defaultCommissionPercent at quote time.
@@ -240,6 +241,7 @@ export const clinicService = {
       weeklyHours: data.weeklyHours,
       holidays: data.holidays,
       consultationFee: data.consultationFee,
+      tokenValidityDays: data.tokenValidityDays,
       averageConsultationTime: data.averageConsultationTime,
       banner: data.banner,
       logo: data.logo,
@@ -271,6 +273,7 @@ export const clinicService = {
     if (data.weeklyHours !== undefined) clinic.weeklyHours = data.weeklyHours;
     if (data.holidays !== undefined) clinic.holidays = data.holidays;
     if (data.consultationFee !== undefined) clinic.consultationFee = data.consultationFee;
+    if (data.tokenValidityDays !== undefined) clinic.tokenValidityDays = data.tokenValidityDays;
     if (data.averageConsultationTime !== undefined) clinic.averageConsultationTime = data.averageConsultationTime;
     if (data.status !== undefined) clinic.status = data.status;
     await clinic.save();

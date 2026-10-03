@@ -3,13 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowLeft, Clock, MapPin, Phone, Mail, CheckCircle, ChevronRight, AlertCircle,
-  Building, Stethoscope, Tooth, HeartPulse, Sparkles, Brain, Flask,
+  ArrowLeft, ArrowRight, Clock, MapPin, Phone, Mail, CheckCircle, ChevronRight, AlertCircle,
+  Calendar, Ticket, Star, Building, Stethoscope, Tooth, HeartPulse, Sparkles, Brain, Flask,
 } from '../_components/icons';
 import { resolveRoute } from '../_lib/onboarding';
 import { getCurrentUser } from '../_lib/auth';
 import { flow } from '../_lib/flow';
-import { clinicApi, paymentApi, ApiError } from '../_lib/api';
+import { clinicApi, paymentApi, bookingApi, reviewApi, ApiError } from '../_lib/api';
 import { mapClinicDetail, to12, dateLabel, formatINR } from '../_lib/clinicMap';
 import styles from './clinic.module.css';
 
@@ -35,6 +35,9 @@ const BOOK_ERR = {
   ALREADY_BOOKED: 'You already have a booking in this slot.',
   BOOKING_DISABLED: 'This clinic isn’t accepting online bookings right now.',
   CLINIC_NOT_FOUND: 'This clinic is no longer available.',
+  TOKEN_EXPIRED_BOOKING: 'This token has expired. Please make a new booking.',
+  REBOOK_NOT_ELIGIBLE: 'This ID isn’t eligible for a free re-book here.',
+  APPOINTMENT_NOT_FOUND: 'No booking found for that ID.',
 };
 const SLOT_ERR_CODES = ['SLOT_FULL', 'SLOT_UNAVAILABLE', 'ALREADY_BOOKED'];
 
@@ -171,7 +174,16 @@ export default function Clinic() {
   const [clinic, setClinic] = useState(null);
   const [loadErr, setLoadErr] = useState('');
   const [tab, setTab] = useState('booking'); // booking | about | contact
-  const [step, setStep] = useState('pick');  // pick | form | pay | done
+  const [step, setStep] = useState('choose'); // choose | pick | form | pay | done | code
+  const [mode, setMode] = useState('new');    // new (paid) | rebook (free, via existing token)
+
+  // Free re-book flow (mode === 'rebook'): confirm an existing appointment ID.
+  const [rebookCode, setRebookCode] = useState('');
+  const [rebookInfo, setRebookInfo] = useState(null); // lookup result (patient + validity)
+  const [rebookLooking, setRebookLooking] = useState(false);
+  const [rebookErr, setRebookErr] = useState('');
+  const [myTokens, setMyTokens] = useState([]);       // this clinic's own still-valid tokens
+  const [tokensLoading, setTokensLoading] = useState(false);
 
   // Date + slot picker.
   const [dates, setDates] = useState([]);
@@ -277,6 +289,36 @@ export default function Clinic() {
     return () => { cancelled = true; };
   }, [clinic, selectedDate, reloadKey]);
 
+  // When the "I have an appointment ID" route opens, load THIS clinic's own tokens
+  // that haven't expired, so the patient can tap one instead of typing a code.
+  useEffect(() => {
+    if (mode !== 'rebook' || !clinic) return;
+    let cancelled = false;
+    setTokensLoading(true);
+    (async () => {
+      const todayS = toDateStr(new Date());
+      try {
+        const all = await bookingApi.listMine('all');
+        if (cancelled) return;
+        // One entry per validity window (keep the earliest-dated = the paid original).
+        const byWindow = new Map();
+        (all || []).forEach((it) => {
+          if (String(it.clinicId) !== clinic.id) return;
+          const vu = it.tokenValidUntil;
+          if (!vu || vu < todayS || !it.appointmentCode) return;
+          const prev = byWindow.get(vu);
+          if (!prev || it.date < prev.date) byWindow.set(vu, { code: it.appointmentCode, validUntil: vu, date: it.date });
+        });
+        setMyTokens([...byWindow.values()].sort((a, b) => (a.validUntil < b.validUntil ? 1 : -1)));
+      } catch {
+        if (!cancelled) setMyTokens([]);
+      } finally {
+        if (!cancelled) setTokensLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [mode, clinic]);
+
   const today = toDateStr(new Date());
   const dayOpen = !!(day && day.open);
   const openSlots = dayOpen ? (day.slots || []) : [];
@@ -306,7 +348,68 @@ export default function Clinic() {
     }
   };
 
-  // Stop any in-flight status poll.
+  // Free re-book — step 1: confirm the entered appointment ID belongs to the user
+  // and is still within this clinic's validity window.
+  const REBOOK_INELIGIBLE = {
+    OTHER_CLINIC: 'That ID is for a different clinic. Use the clinic where you booked it.',
+    NO_VALIDITY: 'This booking has no free re-book window.',
+    EXPIRED: 'This token has expired — please make a new booking.',
+  };
+  const lookupRebook = async (codeArg) => {
+    const code = String(codeArg ?? rebookCode).trim().toUpperCase();
+    if (!code || rebookLooking || !clinic) return;
+    setRebookCode(code);
+    setRebookLooking(true); setRebookErr(''); setRebookInfo(null);
+    try {
+      const info = await bookingApi.rebookLookup({ appointmentCode: code, clinicId: clinic.id });
+      setRebookInfo(info);
+      if (!info.eligible) setRebookErr(REBOOK_INELIGIBLE[info.ineligibleReason] || 'This ID isn’t eligible for a free re-book.');
+    } catch (err) {
+      const c = err instanceof ApiError ? err.code : '';
+      setRebookErr(BOOK_ERR[c] || (err instanceof ApiError ? err.message : 'Could not find that booking.'));
+    } finally {
+      setRebookLooking(false);
+    }
+  };
+
+  // Confirmed the ID → carry its patient details into the slot picker (free path).
+  const proceedToRebookSlot = () => {
+    if (!rebookInfo || !rebookInfo.eligible) return;
+    const p = rebookInfo.patient || {};
+    setName(p.name || '');
+    setPhone(p.phone || '');
+    setAge(p.age != null ? String(p.age) : '');
+    setGender(p.gender || '');
+    setReason(rebookInfo.reason || '');
+    setSubmitErr(''); setSubmitCode('');
+    setStep('pick');
+  };
+
+  // Tap one of this clinic's own valid tokens → confirm it (no typing).
+  const selectToken = (code) => { lookupRebook(code); };
+
+  // Free re-book — step 2: claim the chosen slot at ₹0 (no payment).
+  const freeRebook = async () => {
+    if (!clinic || !selectedDate || !selectedSlot) return;
+    setSubmitting(true); setSubmitErr(''); setSubmitCode('');
+    try {
+      const appt = await bookingApi.rebook({
+        appointmentCode: rebookCode.trim().toUpperCase(),
+        clinicId: clinic.id,
+        date: selectedDate,
+        slotStart: selectedSlot.start,
+        slotEnd: selectedSlot.end,
+      });
+      setResult(appt);
+      setStep('done');
+    } catch (err) {
+      const code = err instanceof ApiError ? err.code : '';
+      setSubmitCode(code);
+      setSubmitErr(BOOK_ERR[code] || (err instanceof ApiError ? err.message : 'Could not complete the free booking.'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
   const stopStatusPoll = () => {
     pollStopRef.current = true;
     if (pollTimerRef.current) { clearTimeout(pollTimerRef.current); pollTimerRef.current = null; }
@@ -463,6 +566,9 @@ export default function Clinic() {
           <p className={styles.meta}>{clinic.cat} · {clinic.area}</p>
           <div className={styles.heroRow}>
             <span className={`${styles.badge} ${styles[STATUS_CLASS[clinic.status]]}`}>{STATUS_LABEL[clinic.status]}</span>
+            {clinic.ratingCount > 0 && (
+              <span className={styles.rate}><Star size={14} /> {clinic.ratingAvg} ({clinic.ratingCount})</span>
+            )}
             <span className={styles.reviews}>{clinic.doctorsCount} doctor{clinic.doctorsCount === 1 ? '' : 's'}</span>
           </div>
         </div>
@@ -471,11 +577,116 @@ export default function Clinic() {
       <div className={styles.tabs}>
         <button className={`${styles.tabBtn} ${tab === 'booking' ? styles.on : ''}`} onClick={() => setTab('booking')}>Booking</button>
         <button className={`${styles.tabBtn} ${tab === 'about' ? styles.on : ''}`} onClick={() => setTab('about')}>About</button>
+        <button className={`${styles.tabBtn} ${tab === 'reviews' ? styles.on : ''}`} onClick={() => setTab('reviews')}>Reviews</button>
         <button className={`${styles.tabBtn} ${tab === 'contact' ? styles.on : ''}`} onClick={() => setTab('contact')}>Contact</button>
       </div>
 
+      {tab === 'booking' && step === 'choose' && (
+        <div className={styles.pane}>
+          <p className={styles.pickerLabel}>How would you like to book?</p>
+          <button
+            className={styles.choiceCard}
+            onClick={() => { setMode('new'); setSubmitErr(''); setSubmitCode(''); setStep('pick'); }}
+          >
+            <span className={styles.choiceIc}><Calendar size={22} /></span>
+            <span className={styles.choiceBody}>
+              <span className={styles.choiceTitle}>New booking</span>
+              <span className={styles.choiceSub}>Pick a slot and pay the consultation fee.</span>
+            </span>
+            <ArrowRight size={18} className={styles.choiceChev} />
+          </button>
+          <button
+            className={styles.choiceCard}
+            onClick={() => {
+              setMode('rebook'); setStep('code');
+              setRebookErr(''); setRebookInfo(null);
+            }}
+          >
+            <span className={styles.choiceIc}><Ticket size={22} /></span>
+            <span className={styles.choiceBody}>
+              <span className={styles.choiceTitle}>I have an appointment ID</span>
+              <span className={styles.choiceSub}>Re-book free while your token is still valid.</span>
+            </span>
+            <ArrowRight size={18} className={styles.choiceChev} />
+          </button>
+        </div>
+      )}
+
+      {tab === 'booking' && step === 'code' && (
+        <div className={styles.pane}>
+          <button className={styles.selfBtn} onClick={() => { setStep('choose'); setRebookErr(''); setRebookInfo(null); }}>
+            <ArrowLeft size={16} /> Back
+          </button>
+
+          {tokensLoading ? (
+            <p className={styles.hint}>Looking up your tokens…</p>
+          ) : myTokens.length > 0 ? (
+            <>
+              <p className={styles.pickerLabel}>Your active tokens here</p>
+              <div className={styles.tokenList}>
+                {myTokens.map((t) => {
+                  const on = rebookCode === t.code;
+                  return (
+                    <button
+                      key={t.code}
+                      className={`${styles.tokenItem} ${on ? styles.on : ''}`}
+                      onClick={() => selectToken(t.code)}
+                    >
+                      <span className={styles.tokenItemIc}><Ticket size={18} /></span>
+                      <span className={styles.tokenItemBody}>
+                        <span className={styles.tokenItemCode}>{t.code}</span>
+                        <span className={styles.tokenItemSub}>Valid until {dateLabel(t.validUntil)}</span>
+                      </span>
+                      {on ? <CheckCircle size={18} className={styles.tokenItemChk} /> : <ArrowRight size={16} className={styles.tokenItemChev} />}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className={styles.pickerLabel}>Or enter an ID</p>
+            </>
+          ) : null}
+
+          <div className={styles.field}>
+            <label className={styles.label}>Appointment ID</label>
+            <input
+              className={styles.input}
+              value={rebookCode}
+              onChange={(e) => { setRebookCode(e.target.value.toUpperCase().slice(0, 20)); setRebookInfo(null); setRebookErr(''); }}
+              placeholder="e.g. OC-20260930-0007"
+              autoCapitalize="characters"
+            />
+            <p className={styles.hint}>Find it on your booking card under “ID”. Re-booking is free while your token is valid.</p>
+          </div>
+
+          {rebookErr && <p className={styles.errline}>{rebookErr}</p>}
+
+          {rebookInfo && rebookInfo.eligible ? (
+            <>
+              <div className={styles.doneCard}>
+                <div className={styles.doneRow}><span>Patient</span><b>{rebookInfo.patient?.name || '—'}</b></div>
+                <div className={styles.doneRow}><span>Phone</span><b>{rebookInfo.patient?.phone || '—'}</b></div>
+                <div className={styles.doneRow}><span>Clinic</span><b>{rebookInfo.clinicName || clinic.name}</b></div>
+                <div className={styles.doneRow}><span>Valid until</span><b>{rebookInfo.tokenValidUntil ? dateLabel(rebookInfo.tokenValidUntil) : '—'}</b></div>
+              </div>
+              <p className={styles.freeNote}>It’s you — this re-book is free. Choose a slot next.</p>
+              <button className={styles.cta} onClick={proceedToRebookSlot}>Confirm — choose slot</button>
+            </>
+          ) : (
+            <button className={styles.cta} disabled={!rebookCode.trim() || rebookLooking} onClick={lookupRebook}>
+              {rebookLooking ? 'Finding…' : 'Find my booking'}
+            </button>
+          )}
+        </div>
+      )}
+
       {tab === 'booking' && step === 'pick' && (
         <div className={styles.pane}>
+          <button className={styles.selfBtn} onClick={() => { setStep(mode === 'rebook' ? 'code' : 'choose'); setSubmitErr(''); setSubmitCode(''); }}>
+            <ArrowLeft size={16} /> Back
+          </button>
+          {mode === 'rebook' && (
+            <p className={styles.freeNote}>Free re-book for {name || 'you'} — just pick a slot, no payment.</p>
+          )}
           <div className={styles.seatCard}>
             <div className={styles.seatRow}>
               <Clock size={17} />
@@ -531,9 +742,21 @@ export default function Clinic() {
             </>
           )}
 
-          <button className={styles.cta} disabled={!selectedSlot} onClick={() => { setSubmitErr(''); setSubmitCode(''); setStep('form'); }}>
-            Continue
-          </button>
+          {submitErr && mode === 'rebook' && <p className={styles.errline}>{submitErr}</p>}
+
+          {mode === 'rebook' ? (
+            SLOT_ERR_CODES.includes(submitCode) ? (
+              <button className={styles.cta} onClick={pickAnother}>Choose another slot</button>
+            ) : (
+              <button className={styles.cta} disabled={!selectedSlot || submitting} onClick={freeRebook}>
+                {submitting ? 'Booking…' : 'Confirm free booking'}
+              </button>
+            )
+          ) : (
+            <button className={styles.cta} disabled={!selectedSlot} onClick={() => { setSubmitErr(''); setSubmitCode(''); setStep('form'); }}>
+              Continue
+            </button>
+          )}
         </div>
       )}
 
@@ -636,6 +859,7 @@ export default function Clinic() {
               <div className={styles.doneRow}><span>Date</span><b>{dateLabel(result.date)}</b></div>
               <div className={styles.doneRow}><span>Time</span><b>{to12(result.slotStart)} – {to12(result.slotEnd)}</b></div>
               <div className={styles.doneRow}><span>Patient</span><b>{result.patient?.name || name.trim()}</b></div>
+              {mode === 'rebook' && <div className={styles.doneRow}><span>Payment</span><b>Free re-book</b></div>}
             </div>
             <button className={styles.cta} onClick={() => router.push('/bookings')}>View my bookings</button>
             <button className={styles.selfBtn} style={{ marginTop: 12, marginBottom: 0 }} onClick={() => router.push('/explore')}>Back to Explore</button>
@@ -717,6 +941,57 @@ export default function Clinic() {
           </div>
         </div>
       )}
+      {tab === 'reviews' && (
+        <ReviewsPane clinicId={clinic.id} avg={clinic.ratingAvg} count={clinic.ratingCount} />
+      )}
     </main>
+  );
+}
+
+// Anonymous reviews for a clinic (patient-facing). Self-contained: fetches lazily
+// when the Reviews tab is opened so it never adds work to the clinic's main load.
+function ReviewsPane({ clinicId, avg, count }) {
+  const [reviews, setReviews] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const items = await reviewApi.listForClinic(clinicId, { limit: 20 });
+        if (!cancelled) setReviews(Array.isArray(items) ? items : []);
+      } catch {
+        if (!cancelled) setReviews([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [clinicId]);
+
+  return (
+    <div className={styles.pane}>
+      <div className={styles.reviewSummary}>
+        <span className={styles.rate}><Star size={18} /> {avg || 0}</span>
+        <span className={styles.reviews}>{count || 0} review{count === 1 ? '' : 's'}</span>
+      </div>
+      {reviews === null ? (
+        <p className={styles.about}>Loading reviews…</p>
+      ) : reviews.length === 0 ? (
+        <p className={styles.about}>No reviews yet. Patients can rate a clinic after a completed visit.</p>
+      ) : (
+        <div className={styles.infoList}>
+          {reviews.map((r, i) => (
+            <div key={i} className={styles.reviewItem}>
+              <span className={styles.reviewStars}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <Star key={n} size={13} style={{ color: n <= r.rating ? '#f5a623' : '#d4d4db' }} />
+                ))}
+              </span>
+              {r.comment && <p className={styles.reviewText}>{r.comment}</p>}
+              <p className={styles.reviewDate}>
+                {new Date(r.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

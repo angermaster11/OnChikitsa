@@ -53,6 +53,15 @@ export function daysFromToday(dateStr: string): number {
   return Math.round((target - today) / 86_400_000);
 }
 
+/** Add `days` to a "YYYY-MM-DD" date, returning another "YYYY-MM-DD" (local). */
+export function addDaysToDateStr(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + days);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
+}
+
 /** Minutes since local midnight, right now. */
 export function nowMinutes(): number {
   const n = new Date();

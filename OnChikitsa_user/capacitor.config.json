@@ -1,6 +1,6 @@
 {
   "appId": "com.onchikitsa.user",
-  "appName": "OnChikitsa User",
+  "appName": "OnChikitsa",
   "webDir": "out",
   "plugins": {
     "FirebaseAuthentication": {
